@@ -31,8 +31,8 @@
       z-index: 10;
     }
     #roster-sidebar {
-      width: 295px;
-      min-width: 295px;
+      width: 305px;
+      min-width: 305px;
       background: var(--panel);
       padding: 16px;
       display: flex;
@@ -250,8 +250,9 @@
       border-radius: 4px;
       color: white;
       resize: vertical;
-      min-height: 80px;
+      min-height: 90px;
       font-family: inherit;
+      font-size: 0.85rem;
     }
     .modal-actions {
       display: flex;
@@ -363,10 +364,35 @@
 <div id="roster-sidebar">
   <div style="display: flex; justify-content: space-between; align-items: center;">
     <h2>Squad Roster (14)</h2>
-    <span style="font-size: 0.72rem; opacity: 0.65;">Select Active</span>
+    <button class="small-btn" onclick="openSquadManagerModal()" style="font-size: 0.72rem;">📝 Edit List</button>
   </div>
+
+  <!-- Saved Squads Dropdown -->
+  <div class="control-group" style="margin-bottom: 2px;">
+    <div class="scenario-row">
+      <select id="squadListSelect" onchange="loadSelectedSquadList()">
+        <option value="">-- Load Saved Squad --</option>
+      </select>
+      <button class="small-btn" onclick="saveCurrentSquadList()" title="Save current roster names">💾</button>
+      <button class="small-btn" onclick="deleteSelectedSquadList()" title="Delete squad list">🗑</button>
+    </div>
+  </div>
+
   <div id="roster-list" style="display: flex; flex-direction: column; gap: 5px; overflow-y: auto;">
     <!-- Rendered dynamically by JS -->
+  </div>
+</div>
+
+<!-- Bulk Paste Squad List Modal -->
+<div id="squad-modal-overlay" class="modal-overlay">
+  <div class="modal-card" style="max-width: 460px;">
+    <h3 style="color: #a5d6a7; font-size: 1.05rem;">Manage Squad Names</h3>
+    <p style="font-size: 0.8rem; opacity: 0.85;">Paste your player list below (one name per line, or comma-separated). It will populate Players 1 to 14 in order.</p>
+    <textarea id="bulkSquadInput" placeholder="Archie&#10;Leo&#10;Sam&#10;Jack&#10;Harry&#10;Will&#10;Oliver..."></textarea>
+    <div class="modal-actions">
+      <button type="button" class="tool-btn" onclick="closeSquadManagerModal()">Cancel</button>
+      <button type="button" class="action-btn" style="padding: 6px 16px;" onclick="applyBulkSquadNames()">Apply to Roster</button>
+    </div>
   </div>
 </div>
 
@@ -375,12 +401,13 @@
   <div class="modal-card" style="max-width: 520px; max-height: 82vh; overflow-y: auto;">
     <h3 style="color: #a5d6a7; font-size: 1.05rem;">Field Tactics Builder Guide</h3>
     <ul style="font-size: 0.82rem; line-height: 1.55; padding-left: 18px; color: #ddd; display: flex; flex-direction: column; gap: 6px;">
+      <li><strong>Squad Management:</strong> Use <em>📝 Edit List</em> in the right sidebar to paste your full match roster from WhatsApp or an email in one go, or save custom team lists via 💾.</li>
       <li><strong>Placing Fielders:</strong> Select a player in the right squad panel, then click anywhere on the ground to drop them into position.</li>
       <li><strong>Movement & Shifts:</strong> Click the field again with the same player selected to place their alternate position, then use <em>➔ Draw Move Arrow</em> to connect them.</li>
       <li><strong>Core Roles (WK & Bowler):</strong> Click <strong>WK</strong> or <strong>B</strong> on any player row to position them automatically at the striker stumps or delivery crease.</li>
       <li><strong>Repositioning Fielders:</strong> Click and drag any placed dot across the oval. The position name tag recalculates in real time.</li>
       <li><strong>Restrictions & Safety:</strong> The top-right badge tallies Deep, Ring, and Slips. Fielders placed inside the faint 10m arc trigger an instant safety warning.</li>
-      <li><strong>Custom Scenarios:</strong> Click 💾 to save named tactics (e.g. <em>Powerplay vs RHB</em>) to your browser for fast switching during team talks.</li>
+      <li><strong>Custom Scenarios:</strong> Click 💾 in the left sidebar to save named tactics (e.g. <em>Powerplay vs RHB</em>) for fast switching during team talks.</li>
       <li><strong>Match-Day Sheet:</strong> Click <em>Export PNG Image</em> to download a clean image with the squad roster legend attached.</li>
     </ul>
     <div class="modal-actions" style="margin-top: 10px;">
@@ -890,7 +917,6 @@
         if (info.isSlipsGully) slipsCount++;
         if (info.isInside10m) safetyBreach = true;
 
-        // Player Dot
         ctx.beginPath();
         ctx.arc(el.x, el.y, 9, 0, Math.PI * 2);
         ctx.fillStyle = el.color;
@@ -899,7 +925,6 @@
         ctx.strokeStyle = info.isInside10m ? '#ff1744' : '#111111';
         ctx.stroke();
 
-        // Selected active player highlight
         const activePlayer = roster[activePlayerIndex];
         if (activePlayer && el.playerId === activePlayer.id) {
           ctx.beginPath();
@@ -1143,6 +1168,111 @@
     link.click();
   }
 
+  // --- SQUAD LIST BULK PASTE & MANAGEMENT ---
+  function openSquadManagerModal() {
+    const names = roster.map(p => p.name).join('\n');
+    document.getElementById('bulkSquadInput').value = names;
+    document.getElementById('squad-modal-overlay').style.display = 'flex';
+  }
+
+  function closeSquadManagerModal() {
+    document.getElementById('squad-modal-overlay').style.display = 'none';
+  }
+
+  function applyBulkSquadNames() {
+    const raw = document.getElementById('bulkSquadInput').value.trim();
+    if (!raw) {
+      closeSquadManagerModal();
+      return;
+    }
+
+    // Split on newlines or commas
+    const parsed = raw.split(/[\n,]+/).map(n => n.trim()).filter(n => n.length > 0);
+
+    parsed.slice(0, 14).forEach((name, i) => {
+      roster[i].name = name;
+      elements.forEach(el => {
+        if (el.type === 'dot' && el.playerId === roster[i].id) {
+          el.playerName = name;
+        }
+      });
+    });
+
+    renderRoster();
+    drawCanvas();
+    closeSquadManagerModal();
+  }
+
+  function getSavedSquadLists() {
+    try {
+      return JSON.parse(localStorage.getItem('cricket_saved_squad_lists') || '{}');
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function refreshSquadListDropdown() {
+    const lists = getSavedSquadLists();
+    const sel = document.getElementById('squadListSelect');
+    sel.innerHTML = '<option value="">-- Load Saved Squad --</option>';
+    Object.keys(lists).forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      sel.appendChild(opt);
+    });
+  }
+
+  function saveCurrentSquadList() {
+    const name = prompt("Enter a squad name to save (e.g. 'U13 Reps Team', 'Saturday XI'):");
+    if (!name || !name.trim()) return;
+
+    const squadName = name.trim();
+    const lists = getSavedSquadLists();
+    lists[squadName] = roster.map(p => p.name);
+
+    localStorage.setItem('cricket_saved_squad_lists', JSON.stringify(lists));
+    refreshSquadListDropdown();
+    document.getElementById('squadListSelect').value = squadName;
+    alert(`Squad list "${squadName}" saved!`);
+  }
+
+  function loadSelectedSquadList() {
+    const name = document.getElementById('squadListSelect').value;
+    if (!name) return;
+
+    const lists = getSavedSquadLists();
+    const savedNames = lists[name];
+    if (savedNames && Array.isArray(savedNames)) {
+      savedNames.forEach((n, i) => {
+        if (roster[i]) {
+          roster[i].name = n;
+          elements.forEach(el => {
+            if (el.type === 'dot' && el.playerId === roster[i].id) {
+              el.playerName = n;
+            }
+          });
+        }
+      });
+      renderRoster();
+      drawCanvas();
+    }
+  }
+
+  function deleteSelectedSquadList() {
+    const name = document.getElementById('squadListSelect').value;
+    if (!name) {
+      alert("Please select a squad list to delete.");
+      return;
+    }
+    if (confirm(`Delete squad list "${name}"?`)) {
+      const lists = getSavedSquadLists();
+      delete lists[name];
+      localStorage.setItem('cricket_saved_squad_lists', JSON.stringify(lists));
+      refreshSquadListDropdown();
+    }
+  }
+
   // --- LOCALSTORAGE CUSTOM SCENARIO MANAGEMENT ---
   function getSavedScenarios() {
     try {
@@ -1222,7 +1352,7 @@
     }
   }
 
-  // --- HELP / GUIDE MODAL SCRIPT ---
+  // --- HELP & FEEDBACK MODALS ---
   function openHelpModal() {
     document.getElementById('help-modal-overlay').style.display = 'flex';
   }
@@ -1231,7 +1361,6 @@
     document.getElementById('help-modal-overlay').style.display = 'none';
   }
 
-  // --- FEEDBACK MODAL SCRIPT ---
   function openFeedbackModal() {
     document.getElementById('feedback-modal-overlay').style.display = 'flex';
   }
@@ -1272,6 +1401,7 @@
 
   renderRoster();
   refreshScenarioDropdown();
+  refreshSquadListDropdown();
   drawCanvas();
 </script>
 </body>
