@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Cricket Field Diagram Planner</title>
   <style>
     :root {
@@ -17,7 +18,10 @@
       display: flex;
       height: 100vh;
       overflow: hidden;
+      touch-action: manipulation;
     }
+    
+    /* Sidebars */
     #sidebar {
       width: 290px;
       min-width: 290px;
@@ -28,7 +32,7 @@
       gap: 12px;
       box-shadow: 2px 0 10px rgba(0,0,0,0.3);
       overflow-y: auto;
-      z-index: 10;
+      z-index: 20;
     }
     #roster-sidebar {
       width: 310px;
@@ -39,7 +43,7 @@
       flex-direction: column;
       gap: 10px;
       box-shadow: -2px 0 10px rgba(0,0,0,0.3);
-      z-index: 10;
+      z-index: 20;
       height: 100vh;
     }
     .roster-header-pinned {
@@ -53,7 +57,7 @@
     #roster-list {
       display: flex;
       flex-direction: column;
-      gap: 5px;
+      gap: 6px;
       overflow-y: auto;
       flex: 1;
       padding-right: 4px;
@@ -68,22 +72,23 @@
     select, input[type="text"] {
       background: #1e1e24;
       border: 1px solid #555;
-      padding: 6px 8px;
-      border-radius: 4px;
+      padding: 8px;
+      border-radius: 6px;
       color: white;
-      font-size: 0.85rem;
+      font-size: 0.9rem;
     }
     .toggle-row {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       cursor: pointer;
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       user-select: none;
+      padding: 4px 0;
     }
     .toggle-row input[type="checkbox"] {
-      width: 15px;
-      height: 15px;
+      width: 18px;
+      height: 18px;
       accent-color: #2e7d32;
       cursor: pointer;
     }
@@ -91,10 +96,10 @@
       background: #3b3b4a;
       border: 2px solid transparent;
       color: white;
-      padding: 8px 10px;
+      padding: 10px 12px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 0.82rem;
+      font-size: 0.85rem;
       text-align: left;
       transition: all 0.2s;
     }
@@ -108,21 +113,21 @@
       background: #388e3c;
       color: white;
       border: none;
-      padding: 10px;
+      padding: 12px;
       border-radius: 6px;
       cursor: pointer;
       font-weight: bold;
-      font-size: 0.88rem;
+      font-size: 0.9rem;
     }
     .action-btn:hover { background: #2e7d32; }
     .secondary-btn {
       background: #d32f2f;
       color: white;
       border: none;
-      padding: 6px;
+      padding: 8px;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 0.8rem;
+      font-size: 0.82rem;
     }
     .secondary-btn:hover { background: #b71c1c; }
     .scenario-row {
@@ -136,10 +141,10 @@
       background: #444;
       border: 1px solid #666;
       color: white;
-      padding: 4px 8px;
+      padding: 6px 10px;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 0.78rem;
+      font-size: 0.82rem;
     }
     .small-btn:hover { background: #555; }
     .edit-squad-btn {
@@ -147,20 +152,20 @@
       border: 1px solid #81c784;
       color: #a5d6a7;
       font-weight: 600;
-      padding: 4px 8px;
+      padding: 6px 10px;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 0.76rem;
+      font-size: 0.8rem;
     }
     .edit-squad-btn:hover { background: #2e5339; color: #fff; }
 
-    /* Roster & Role Buttons */
+    /* Roster Cards */
     .roster-card {
       display: flex;
       align-items: center;
       gap: 6px;
       background: #202029;
-      padding: 5px 8px;
+      padding: 7px 8px;
       border-radius: 6px;
       border: 1px solid #3c3c4d;
       transition: border-color 0.15s;
@@ -170,7 +175,7 @@
       background: #29302b;
     }
     .roster-num {
-      font-size: 0.72rem;
+      font-size: 0.75rem;
       font-weight: bold;
       color: #9e9ea7;
       width: 16px;
@@ -180,9 +185,9 @@
       background: transparent;
       border: none;
       color: white;
-      font-size: 0.82rem;
+      font-size: 0.85rem;
       font-weight: 500;
-      padding: 2px 4px;
+      padding: 4px;
       min-width: 60px;
     }
     .roster-input:focus {
@@ -190,8 +195,8 @@
       border-bottom: 1px solid #81c784;
     }
     .roster-color-dot {
-      width: 18px;
-      height: 18px;
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
       cursor: pointer;
       border: 2px solid #ffffff44;
@@ -208,40 +213,37 @@
       background: #333342;
       border: 1px solid #55556b;
       color: #bbb;
-      font-size: 0.65rem;
+      font-size: 0.7rem;
       font-weight: bold;
-      padding: 2px 5px;
-      border-radius: 3px;
+      padding: 4px 7px;
+      border-radius: 4px;
       cursor: pointer;
       transition: all 0.15s;
     }
-    .role-btn:hover {
-      background: #444456;
-      color: #fff;
-    }
+    .role-btn:hover { background: #444456; color: #fff; }
     .role-btn.active-role {
       background: #2e7d32;
       border-color: #81c784;
       color: #ffffff;
     }
     .on-field-badge {
-      font-size: 0.65rem;
-      padding: 1px 4px;
+      font-size: 0.68rem;
+      padding: 2px 5px;
       border-radius: 3px;
       background: #388e3c;
       color: white;
       font-weight: bold;
     }
 
-    /* Modals & Sidebar Buttons */
+    /* Modals & Buttons */
     .feedback-link-btn {
       background: transparent;
       border: 1px solid #555;
       color: #bbb;
-      padding: 6px;
+      padding: 8px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 0.78rem;
+      font-size: 0.8rem;
       text-align: center;
       transition: all 0.2s;
     }
@@ -289,20 +291,97 @@
       margin-top: 6px;
     }
 
+    /* Canvas Viewport */
     #canvas-container {
       flex: 1;
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 14px;
+      padding: 10px;
       position: relative;
-      overflow: auto;
+      overflow: hidden;
+      background: #18181c;
     }
     canvas {
       background: #438945;
       border-radius: 8px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.5);
       cursor: crosshair;
+      touch-action: none; /* CRITICAL: Prevents iPad/phone gestures from canceling drag */
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    /* Mobile/Tablet Drawer Toggle Bar */
+    .mobile-tab-bar {
+      display: none;
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      background: rgba(30, 30, 36, 0.92);
+      backdrop-filter: blur(8px);
+      padding: 6px 10px;
+      border-radius: 30px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+      border: 1px solid #4a4a5a;
+      gap: 8px;
+    }
+    .mobile-tab-btn {
+      background: #2b2b36;
+      border: 1px solid #555;
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .mobile-tab-btn.active-tab {
+      background: #2e7d32;
+      border-color: #81c784;
+    }
+    .drawer-close-btn {
+      display: none;
+      background: #444;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-bottom: 6px;
+      align-self: flex-end;
+    }
+
+    /* Responsive Breakpoints for Tablet / iPad / Phone */
+    @media (max-width: 1024px) {
+      .mobile-tab-bar { display: flex; }
+      .drawer-close-btn { display: block; }
+
+      #sidebar {
+        position: fixed;
+        left: -320px;
+        top: 0;
+        bottom: 0;
+        width: 300px;
+        transition: left 0.25s ease;
+        box-shadow: 4px 0 20px rgba(0,0,0,0.7);
+      }
+      #sidebar.open { left: 0; }
+
+      #roster-sidebar {
+        position: fixed;
+        right: -330px;
+        top: 0;
+        bottom: 0;
+        width: 310px;
+        transition: right 0.25s ease;
+        box-shadow: -4px 0 20px rgba(0,0,0,0.7);
+      }
+      #roster-sidebar.open { right: 0; }
     }
   </style>
 </head>
@@ -310,6 +389,7 @@
 
 <!-- Left Control Sidebar -->
 <div id="sidebar">
+  <button class="drawer-close-btn" onclick="toggleDrawer('sidebar', false)">✕ Close</button>
   <h2>Tactics Builder</h2>
 
   <div class="control-group">
@@ -389,28 +469,33 @@
   <canvas id="groundCanvas" width="800" height="920"></canvas>
 </div>
 
-<!-- Right Roster & Team Sheet Sidebar (Pinned Top Controls) -->
+<!-- Right Roster & Team Sheet Sidebar -->
 <div id="roster-sidebar">
+  <button class="drawer-close-btn" onclick="toggleDrawer('roster-sidebar', false)">✕ Close</button>
   <div class="roster-header-pinned">
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <h2>Squad Roster (14)</h2>
       <button class="edit-squad-btn" onclick="openSquadManagerModal()">📝 Edit List</button>
     </div>
 
-    <!-- Saved Squads Dropdown -->
     <div class="scenario-row">
       <select id="squadListSelect" onchange="loadSelectedSquadList()">
         <option value="">-- Load Saved Squad --</option>
       </select>
-      <button class="small-btn" onclick="saveCurrentSquadList()" title="Save current roster names">💾</button>
+      <button class="small-btn" onclick="saveCurrentSquadList()" title="Save roster names">💾</button>
       <button class="small-btn" onclick="deleteSelectedSquadList()" title="Delete squad list">🗑</button>
     </div>
   </div>
 
-  <!-- Player 1 to 14 Cards -->
   <div id="roster-list">
     <!-- Rendered dynamically by JS -->
   </div>
+</div>
+
+<!-- Mobile Drawer Buttons -->
+<div class="mobile-tab-bar">
+  <button class="mobile-tab-btn" onclick="toggleDrawer('sidebar')">⚙️ Controls</button>
+  <button class="mobile-tab-btn" onclick="toggleDrawer('roster-sidebar')">👥 Squad</button>
 </div>
 
 <!-- Bulk Paste Squad List Modal -->
@@ -421,24 +506,22 @@
     <textarea id="bulkSquadInput" placeholder="Archie&#10;Leo&#10;Sam&#10;Jack&#10;Harry&#10;Will&#10;Oliver..."></textarea>
     <div class="modal-actions">
       <button type="button" class="tool-btn" onclick="closeSquadManagerModal()">Cancel</button>
-      <button type="button" class="action-btn" style="padding: 6px 16px;" onclick="applyBulkSquadNames()">Apply to Roster</button>
+      <button type="button" class="action-btn" style="padding: 8px 16px;" onclick="applyBulkSquadNames()">Apply to Roster</button>
     </div>
   </div>
 </div>
 
-<!-- Help / Instructions Modal -->
+<!-- Help Modal -->
 <div id="help-modal-overlay" class="modal-overlay">
   <div class="modal-card" style="max-width: 520px; max-height: 82vh; overflow-y: auto;">
     <h3 style="color: #a5d6a7; font-size: 1.05rem;">Field Tactics Builder Guide</h3>
     <ul style="font-size: 0.82rem; line-height: 1.55; padding-left: 18px; color: #ddd; display: flex; flex-direction: column; gap: 6px;">
-      <li><strong>Squad Management:</strong> Use <em>📝 Edit List</em> in the right sidebar to paste your full match roster from WhatsApp or an email in one go, or save custom team lists via 💾.</li>
-      <li><strong>Placing Fielders:</strong> Select a player in the right squad panel, then click anywhere on the ground to drop them into position.</li>
-      <li><strong>Movement & Shifts:</strong> Click the field again with the same player selected to place their alternate position, then use <em>➔ Draw Move Arrow</em> to connect them.</li>
-      <li><strong>Core Roles (WK & Bowler):</strong> Click <strong>WK</strong> or <strong>B</strong> on any player row to position them automatically at the striker stumps or delivery crease.</li>
-      <li><strong>Repositioning Fielders:</strong> Click and drag any placed dot across the oval. The position name tag recalculates in real time.</li>
-      <li><strong>Restrictions & Safety:</strong> The top-right badge tallies Deep, Ring, and Slips. Fielders placed inside the faint 10m arc trigger an instant safety warning.</li>
-      <li><strong>Custom Scenarios:</strong> Click 💾 in the left sidebar to save named tactics (e.g. <em>Powerplay vs RHB</em>) for fast switching during team talks.</li>
-      <li><strong>Match-Day Sheet:</strong> Click <em>Export PNG Image</em> to download a clean image with the squad roster legend attached.</li>
+      <li><strong>Touchscreen Controls:</strong> Tap to place a player dot. Press and drag any dot with your finger to move them smoothly across the turf.</li>
+      <li><strong>Sidebars on Mobile/Tablet:</strong> Tap <em>⚙️ Controls</em> or <em>👥 Squad</em> at the bottom of the screen to open the slide-out drawers.</li>
+      <li><strong>Squad Management:</strong> Use <em>📝 Edit List</em> in the squad drawer to paste your roster from WhatsApp/email.</li>
+      <li><strong>Movement & Shifts:</strong> Tap the field again with the same player selected to drop an alternate dot, then link with <em>➔ Draw Move Arrow</em>.</li>
+      <li><strong>Core Roles (WK & Bowler):</strong> Tap <strong>WK</strong> or <strong>B</strong> on any player to position them automatically.</li>
+      <li><strong>Restrictions & Safety:</strong> The top-right badge audits fielders in the deep vs inner ring, and warns if any child is inside the 10m safety arc.</li>
     </ul>
     <div class="modal-actions" style="margin-top: 10px;">
       <button type="button" class="action-btn" style="padding: 6px 18px;" onclick="closeHelpModal()">Got It</button>
@@ -501,6 +584,18 @@
   const CY = 475;
   const PITCH_H = 150;
   const EXCLUSION_RADIUS_PX = 74;
+
+  // Responsive Drawer toggle for mobile/tablets
+  function toggleDrawer(id, forceState) {
+    const el = document.getElementById(id);
+    const otherId = (id === 'sidebar') ? 'roster-sidebar' : 'sidebar';
+    document.getElementById(otherId).classList.remove('open');
+    if (forceState !== undefined) {
+      el.classList.toggle('open', forceState);
+    } else {
+      el.classList.toggle('open');
+    }
+  }
 
   function getStrikerCoords() {
     const isBottom = document.getElementById('strikerEnd').value === 'bottom';
@@ -747,7 +842,6 @@
     const isClose = dist < 90;
     const isDeep = Math.pow((x - CX) / 180, 2) + Math.pow((y - CY) / 210, 2) > 1.0;
 
-    // Off-side
     if (theta < -145) return isDeep ? "Deep Third" : "Fly Slip";
     if (theta >= -145 && theta < -105) return isDeep ? "Deep Bwd Point" : (isClose ? "Backward Point" : "Bwd Point");
     if (theta >= -105 && theta < -70)  return isDeep ? "Deep Point" : "Point";
@@ -755,7 +849,6 @@
     if (theta >= -40 && theta < -15)   return isDeep ? "Deep Extra Cover" : "Extra Cover";
     if (theta >= -15 && theta < 0)     return isDeep ? "Long-Off" : (isClose ? "Silly Mid-Off" : "Mid-Off");
 
-    // Leg-side
     if (theta >= 0 && theta < 15)      return isDeep ? "Long-On" : (isClose ? "Silly Mid-On" : "Mid-On");
     if (theta >= 15 && theta < 50)     return isDeep ? "Deep Mid-Wkt" : (isClose ? "Short Mid-Wkt" : "Mid-Wicket");
     if (theta >= 50 && theta < 80)     return isDeep ? "Cow Corner" : "Mid-Wicket";
@@ -776,7 +869,6 @@
     ctx.textAlign = "center";
     ctx.fillText(title.toUpperCase(), canvas.width / 2, 38);
 
-    // Outfield boundary
     ctx.beginPath();
     ctx.ellipse(CX, CY, 340, 400, 0, 0, Math.PI * 2);
     ctx.fillStyle = "#52945b";
@@ -785,7 +877,6 @@
     ctx.strokeStyle = "#e8f5e9";
     ctx.stroke();
 
-    // 30-Yard Circle
     ctx.beginPath();
     ctx.ellipse(CX, CY, 180, 210, 0, 0, Math.PI * 2);
     ctx.lineWidth = 2;
@@ -794,7 +885,6 @@
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Pitch
     const pitchW = 48;
     ctx.fillStyle = "#d7c19a";
     ctx.fillRect(CX - pitchW / 2, CY - PITCH_H / 2, pitchW, PITCH_H);
@@ -802,7 +892,6 @@
     ctx.lineWidth = 1.5;
     ctx.strokeRect(CX - pitchW / 2, CY - PITCH_H / 2, pitchW, PITCH_H);
 
-    // Crease lines
     const topCreaseY = CY - PITCH_H / 2 + 20;
     const botCreaseY = CY + PITCH_H / 2 - 20;
     ctx.strokeStyle = "white";
@@ -814,7 +903,6 @@
     ctx.lineTo(CX + pitchW/2, botCreaseY);
     ctx.stroke();
 
-    // Striker Marker & Direction
     const striker = getStrikerCoords();
     const isLHB = document.getElementById('batterHand').value === 'LHB';
     ctx.fillStyle = "#ff1744";
@@ -838,7 +926,6 @@
       ctx.fill();
     }
 
-    // 10m Junior Safety Exclusion Arc
     const showExclusion = document.getElementById('toggleExclusion').checked;
     if (showExclusion) {
       ctx.save();
@@ -947,18 +1034,19 @@
         if (info.isSlipsGully) slipsCount++;
         if (info.isInside10m) safetyBreach = true;
 
+        // Enlarged dot slightly for touch display clarity
         ctx.beginPath();
-        ctx.arc(el.x, el.y, 9, 0, Math.PI * 2);
+        ctx.arc(el.x, el.y, 10, 0, Math.PI * 2);
         ctx.fillStyle = el.color;
         ctx.fill();
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2.5;
         ctx.strokeStyle = info.isInside10m ? '#ff1744' : '#111111';
         ctx.stroke();
 
         const activePlayer = roster[activePlayerIndex];
         if (activePlayer && el.playerId === activePlayer.id) {
           ctx.beginPath();
-          ctx.arc(el.x, el.y, 14, 0, Math.PI * 2);
+          ctx.arc(el.x, el.y, 16, 0, Math.PI * 2);
           ctx.strokeStyle = '#ffffff';
           ctx.lineWidth = 2;
           ctx.stroke();
@@ -977,19 +1065,19 @@
 
         if (labelText) {
           ctx.save();
-          ctx.font = "600 9.5px -apple-system, BlinkMacSystemFont, sans-serif";
+          ctx.font = "600 10px -apple-system, BlinkMacSystemFont, sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
 
           const textMetrics = ctx.measureText(labelText);
-          const padX = 5;
+          const padX = 6;
           const boxW = textMetrics.width + (padX * 2);
-          const boxH = 14;
-          const tagY = el.y + 17;
+          const boxH = 15;
+          const tagY = el.y + 19;
 
           ctx.fillStyle = info.isInside10m ? "rgba(180, 20, 20, 0.9)" : "rgba(18, 24, 20, 0.88)";
           ctx.beginPath();
-          ctx.roundRect(el.x - boxW / 2, tagY - boxH / 2, boxW, boxH, 3);
+          ctx.roundRect(el.x - boxW / 2, tagY - boxH / 2, boxW, boxH, 4);
           ctx.fill();
 
           ctx.fillStyle = "#ffffff";
@@ -1001,7 +1089,7 @@
         drawArrow(el.x1, el.y1, el.x2, el.y2, el.color);
       } else if (el.type === 'label') {
         ctx.save();
-        ctx.font = "bold 12px -apple-system, sans-serif";
+        ctx.font = "bold 13px -apple-system, sans-serif";
         ctx.fillStyle = el.color;
         ctx.textAlign = "center";
         ctx.fillText(el.text, el.x, el.y);
@@ -1013,20 +1101,34 @@
 
     if (arrowStart && currentMode === 'arrow') {
       ctx.beginPath();
-      ctx.arc(arrowStart.x, arrowStart.y, 5, 0, Math.PI * 2);
+      ctx.arc(arrowStart.x, arrowStart.y, 6, 0, Math.PI * 2);
       ctx.fillStyle = roster[activePlayerIndex]?.color || '#ffffff';
       ctx.fill();
     }
   }
 
-  // --- MOUSE & DRAG INTERACTION ---
-  canvas.addEventListener('mousedown', (e) => {
+  // --- UNIFIED POINTER & TOUCH ENGINE ---
+  function getCanvasCoordinates(e) {
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    // Accounts for CSS scaling vs internal resolution
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
+    };
+  }
+
+  function handlePointerDown(e) {
+    const { x, y } = getCanvasCoordinates(e);
 
     if (currentMode === 'dot') {
-      const hitDot = elements.slice().reverse().find(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= 18);
+      // Touch-friendly hit test: 26px radius makes grabbing easy with fingertips
+      const hitDot = elements.slice().reverse().find(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= 26);
       if (hitDot) {
         isDragging = true;
         draggedDot = hitDot;
@@ -1036,48 +1138,39 @@
           activePlayerIndex = rIdx;
           renderRoster();
         }
-        canvas.style.cursor = 'grabbing';
       }
     }
-  });
+  }
 
-  canvas.addEventListener('mousemove', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+  function handlePointerMove(e) {
+    if (!isDragging || !draggedDot) return;
+    if (e.cancelable) e.preventDefault(); // Stop iOS gesture scrolling
 
-    if (isDragging && draggedDot) {
-      dragMoved = true;
-      draggedDot.x = x;
-      draggedDot.y = y;
-      drawCanvas();
-    } else if (currentMode === 'dot') {
-      const hoveringDot = elements.some(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= 14);
-      canvas.style.cursor = hoveringDot ? 'grab' : 'crosshair';
-    }
-  });
+    const { x, y } = getCanvasCoordinates(e);
+    dragMoved = true;
+    draggedDot.x = x;
+    draggedDot.y = y;
+    drawCanvas();
+  }
 
-  window.addEventListener('mouseup', () => {
+  function handlePointerUp(e) {
     if (isDragging) {
       isDragging = false;
       draggedDot = null;
-      canvas.style.cursor = (currentMode === 'dot') ? 'crosshair' : 'default';
       drawCanvas();
+      return;
     }
-  });
 
-  canvas.addEventListener('click', (e) => {
     if (dragMoved) {
       dragMoved = false;
       return;
     }
 
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    // Process genuine tap / click
+    const { x, y } = getCanvasCoordinates(e.changedTouches ? { touches: e.changedTouches } : e);
 
     if (currentMode === 'dot') {
-      const hitDot = elements.find(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= 18);
+      const hitDot = elements.find(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= 26);
       if (!hitDot) {
         const p = roster[activePlayerIndex];
         elements.push({
@@ -1088,7 +1181,6 @@
           playerId: p.id,
           playerName: p.name
         });
-
         renderRoster();
         drawCanvas();
       }
@@ -1118,9 +1210,9 @@
     } else if (currentMode === 'delete') {
       const idx = elements.findIndex(el => {
         if (el.type === 'dot' || el.type === 'label') {
-          return Math.hypot(el.x - x, el.y - y) < 22;
+          return Math.hypot(el.x - x, el.y - y) < 28;
         } else if (el.type === 'arrow') {
-          return Math.hypot(el.x2 - x, el.y2 - y) < 18 || Math.hypot(el.x1 - x, el.y1 - y) < 18;
+          return Math.hypot(el.x2 - x, el.y2 - y) < 22 || Math.hypot(el.x1 - x, el.y1 - y) < 22;
         }
         return false;
       });
@@ -1130,7 +1222,25 @@
         drawCanvas();
       }
     }
+  }
+
+  // Mouse Listeners
+  canvas.addEventListener('mousedown', handlePointerDown);
+  canvas.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+      handlePointerMove(e);
+    } else if (currentMode === 'dot') {
+      const { x, y } = getCanvasCoordinates(e);
+      const hoveringDot = elements.some(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= 20);
+      canvas.style.cursor = hoveringDot ? 'grab' : 'crosshair';
+    }
   });
+  window.addEventListener('mouseup', handlePointerUp);
+
+  // Native Touch Listeners (iOS Safari, Android Chrome, Surface)
+  canvas.addEventListener('touchstart', handlePointerDown, { passive: true });
+  canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
+  canvas.addEventListener('touchend', handlePointerUp, { passive: true });
 
   function undo() {
     elements.pop();
@@ -1385,15 +1495,12 @@
   function openHelpModal() {
     document.getElementById('help-modal-overlay').style.display = 'flex';
   }
-
   function closeHelpModal() {
     document.getElementById('help-modal-overlay').style.display = 'none';
   }
-
   function openFeedbackModal() {
     document.getElementById('feedback-modal-overlay').style.display = 'flex';
   }
-
   function closeFeedbackModal() {
     document.getElementById('feedback-modal-overlay').style.display = 'none';
   }
