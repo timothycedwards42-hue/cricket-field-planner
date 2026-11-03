@@ -19,8 +19,8 @@
       overflow: hidden;
     }
     #sidebar {
-      width: 300px;
-      min-width: 300px;
+      width: 290px;
+      min-width: 290px;
       background: var(--panel);
       padding: 16px;
       display: flex;
@@ -31,16 +31,32 @@
       z-index: 10;
     }
     #roster-sidebar {
-      width: 305px;
-      min-width: 305px;
+      width: 310px;
+      min-width: 310px;
       background: var(--panel);
       padding: 16px;
       display: flex;
       flex-direction: column;
       gap: 10px;
       box-shadow: -2px 0 10px rgba(0,0,0,0.3);
-      overflow-y: auto;
       z-index: 10;
+      height: 100vh;
+    }
+    .roster-header-pinned {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #3c3c4d;
+      flex-shrink: 0;
+    }
+    #roster-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      overflow-y: auto;
+      flex: 1;
+      padding-right: 4px;
     }
     h2 { font-size: 1rem; color: #a5d6a7; text-transform: uppercase; letter-spacing: 0.5px; }
     .control-group {
@@ -126,6 +142,17 @@
       font-size: 0.78rem;
     }
     .small-btn:hover { background: #555; }
+    .edit-squad-btn {
+      background: #233827;
+      border: 1px solid #81c784;
+      color: #a5d6a7;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.76rem;
+    }
+    .edit-squad-btn:hover { background: #2e5339; color: #fff; }
 
     /* Roster & Role Buttons */
     .roster-card {
@@ -206,7 +233,7 @@
       font-weight: bold;
     }
 
-    /* Modal & Sidebar Link Buttons */
+    /* Modals & Sidebar Buttons */
     .feedback-link-btn {
       background: transparent;
       border: 1px solid #555;
@@ -250,9 +277,10 @@
       border-radius: 4px;
       color: white;
       resize: vertical;
-      min-height: 90px;
+      min-height: 120px;
       font-family: inherit;
       font-size: 0.85rem;
+      line-height: 1.4;
     }
     .modal-actions {
       display: flex;
@@ -268,6 +296,7 @@
       align-items: center;
       padding: 14px;
       position: relative;
+      overflow: auto;
     }
     canvas {
       background: #438945;
@@ -360,15 +389,15 @@
   <canvas id="groundCanvas" width="800" height="920"></canvas>
 </div>
 
-<!-- Right Roster & Team Sheet Sidebar (14 Players) -->
+<!-- Right Roster & Team Sheet Sidebar (Pinned Top Controls) -->
 <div id="roster-sidebar">
-  <div style="display: flex; justify-content: space-between; align-items: center;">
-    <h2>Squad Roster (14)</h2>
-    <button class="small-btn" onclick="openSquadManagerModal()" style="font-size: 0.72rem;">📝 Edit List</button>
-  </div>
+  <div class="roster-header-pinned">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h2>Squad Roster (14)</h2>
+      <button class="edit-squad-btn" onclick="openSquadManagerModal()">📝 Edit List</button>
+    </div>
 
-  <!-- Saved Squads Dropdown -->
-  <div class="control-group" style="margin-bottom: 2px;">
+    <!-- Saved Squads Dropdown -->
     <div class="scenario-row">
       <select id="squadListSelect" onchange="loadSelectedSquadList()">
         <option value="">-- Load Saved Squad --</option>
@@ -378,7 +407,8 @@
     </div>
   </div>
 
-  <div id="roster-list" style="display: flex; flex-direction: column; gap: 5px; overflow-y: auto;">
+  <!-- Player 1 to 14 Cards -->
+  <div id="roster-list">
     <!-- Rendered dynamically by JS -->
   </div>
 </div>
@@ -1186,7 +1216,6 @@
       return;
     }
 
-    // Split on newlines or commas
     const parsed = raw.split(/[\n,]+/).map(n => n.trim()).filter(n => n.length > 0);
 
     parsed.slice(0, 14).forEach((name, i) => {
