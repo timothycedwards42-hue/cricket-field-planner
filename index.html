@@ -31,8 +31,8 @@
       z-index: 10;
     }
     #roster-sidebar {
-      width: 270px;
-      min-width: 270px;
+      width: 290px;
+      min-width: 290px;
       background: var(--panel);
       padding: 16px;
       display: flex;
@@ -127,11 +127,11 @@
     }
     .small-btn:hover { background: #555; }
 
-    /* Roster Styling */
+    /* Roster & Role Buttons */
     .roster-card {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       background: #202029;
       padding: 5px 8px;
       border-radius: 6px;
@@ -146,7 +146,7 @@
       font-size: 0.75rem;
       font-weight: bold;
       color: #9e9ea7;
-      width: 16px;
+      width: 14px;
     }
     .roster-input {
       flex: 1;
@@ -156,14 +156,15 @@
       font-size: 0.82rem;
       font-weight: 500;
       padding: 2px 4px;
+      min-width: 60px;
     }
     .roster-input:focus {
       outline: none;
       border-bottom: 1px solid #81c784;
     }
     .roster-color-dot {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       border-radius: 50%;
       cursor: pointer;
       border: 2px solid #ffffff44;
@@ -176,12 +177,25 @@
       width: 0;
       height: 0;
     }
-    .on-field-badge {
-      font-size: 0.68rem;
-      padding: 2px 4px;
+    .role-btn {
+      background: #333342;
+      border: 1px solid #55556b;
+      color: #bbb;
+      font-size: 0.65rem;
+      font-weight: bold;
+      padding: 2px 5px;
       border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .role-btn:hover {
+      background: #444456;
+      color: #fff;
+    }
+    .role-btn.active-role {
       background: #2e7d32;
-      color: white;
+      border-color: #81c784;
+      color: #ffffff;
     }
 
     /* Feedback & Modals */
@@ -275,13 +289,17 @@
 
   <div class="control-group">
     <label>Batting End</label>
-    <select id="strikerEnd" onchange="drawCanvas()">
+    <select id="strikerEnd" onchange="updatePitchEnds()">
       <option value="top">North End (Top)</option>
       <option value="bottom">South End (Bottom)</option>
     </select>
   </div>
 
   <div class="control-group">
+    <label class="toggle-row">
+      <input type="checkbox" id="togglePlayerNames" checked onchange="drawCanvas()">
+      <span>Show Player Names</span>
+    </label>
     <label class="toggle-row">
       <input type="checkbox" id="togglePosLabels" checked onchange="drawCanvas()">
       <span>Show Position Text</span>
@@ -336,7 +354,7 @@
 <div id="roster-sidebar">
   <div style="display: flex; justify-content: space-between; align-items: center;">
     <h2>Team Roster (11)</h2>
-    <span style="font-size: 0.72rem; opacity: 0.65;">Click dot to recolor</span>
+    <span style="font-size: 0.72rem; opacity: 0.65;">WK / Bowler</span>
   </div>
   <div id="roster-list" style="display: flex; flex-direction: column; gap: 6px; overflow-y: auto;">
     <!-- Rendered dynamically by JS -->
@@ -374,7 +392,6 @@
   let arrowStart = null;
   let elements = [];
 
-  // Team Roster (11 Players with distinct default colours)
   const DEFAULT_COLORS = [
     '#ffffff', '#ffd600', '#ff6d00', '#ff1744', 
     '#f06292', '#ab47bc', '#00e676', '#00b0ff', 
@@ -384,7 +401,8 @@
   let roster = Array.from({ length: 11 }, (_, i) => ({
     id: i + 1,
     name: `Player ${i + 1}`,
-    color: DEFAULT_COLORS[i]
+    color: DEFAULT_COLORS[i],
+    role: null // 'keeper', 'bowler', or null
   }));
 
   let activePlayerIndex = 0;
@@ -398,17 +416,94 @@
   const PITCH_H = 150;
   const EXCLUSION_RADIUS_PX = 74;
 
+  function getStrikerCoords() {
+    const isBottom = document.getElementById('strikerEnd').value === 'bottom';
+    return {
+      x: CX,
+      y: isBottom ? (CY + PITCH_H / 2 - 20) : (CY - PITCH_H / 2 + 20),
+      isBottom: isBottom
+    };
+  }
+
+  function getAutoPositions() {
+    const striker = getStrikerCoords();
+    if (!striker.isBottom) {
+      // Striker at North End
+      return {
+        keeper: { x: CX, y: striker.y - 48 }, // Behind striker's stumps
+        bowler: { x: CX + 14, y: CY + PITCH_H / 2 + 8 } // Beside non-striker stumps
+      };
+    } else {
+      // Striker at South End
+      return {
+        keeper: { x: CX, y: striker.y + 48 },
+        bowler: { x: CX + 14, y: CY - PITCH_H / 2 - 8 }
+      };
+    }
+  }
+
+  function assignRole(playerId, role) {
+    const player = roster.find(p => p.id === playerId);
+    if (!player) return;
+
+    if (player.role === role) {
+      // Deselect role if toggled off
+      player.role = null;
+    } else {
+      // Clear this role from any other player
+      roster.forEach(p => {
+        if (p.role === role) p.role = null;
+      });
+      player.role = role;
+
+      // Auto-place player in authentic position
+      const autoPos = getAutoPositions();
+      const targetPos = (role === 'keeper') ? autoPos.keeper : autoPos.bowler;
+
+      let existingDot = elements.find(el => el.type === 'dot' && el.playerId === player.id);
+      if (existingDot) {
+        existingDot.x = targetPos.x;
+        existingDot.y = targetPos.y;
+      } else {
+        elements.push({
+          type: 'dot',
+          x: targetPos.x,
+          y: targetPos.y,
+          color: player.color,
+          playerId: player.id,
+          playerName: player.name
+        });
+      }
+    }
+    renderRoster();
+    drawCanvas();
+  }
+
+  // When ends switch, update keeper and bowler positions automatically
+  function updatePitchEnds() {
+    const autoPos = getAutoPositions();
+    roster.forEach(p => {
+      if (p.role === 'keeper' || p.role === 'bowler') {
+        const dot = elements.find(el => el.type === 'dot' && el.playerId === p.id);
+        if (dot) {
+          const target = (p.role === 'keeper') ? autoPos.keeper : autoPos.bowler;
+          dot.x = target.x;
+          dot.y = target.y;
+        }
+      }
+    });
+    drawCanvas();
+  }
+
   function renderRoster() {
     const list = document.getElementById('roster-list');
     list.innerHTML = '';
 
     roster.forEach((p, idx) => {
-      const isOnField = elements.some(el => el.type === 'dot' && el.playerId === p.id);
-
       const card = document.createElement('div');
       card.className = `roster-card ${idx === activePlayerIndex ? 'active-player' : ''}`;
       card.onclick = (e) => {
-        if (e.target.tagName !== 'INPUT') {
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
           activePlayerIndex = idx;
           renderRoster();
           drawCanvas();
@@ -425,7 +520,6 @@
       input.value = p.name;
       input.oninput = (e) => {
         p.name = e.target.value.trim() || `Player ${p.id}`;
-        // Update existing dot labels
         elements.forEach(el => {
           if (el.type === 'dot' && el.playerId === p.id) {
             el.playerName = p.name;
@@ -434,14 +528,12 @@
         drawCanvas();
       };
 
-      // Hidden native color picker triggered by clicking swatch
       const colorInput = document.createElement('input');
       colorInput.type = 'color';
       colorInput.className = 'roster-color-input';
       colorInput.value = p.color;
       colorInput.onchange = (e) => {
         p.color = e.target.value;
-        // Update dot color
         elements.forEach(el => {
           if (el.type === 'dot' && el.playerId === p.id) {
             el.color = p.color;
@@ -460,29 +552,34 @@
         colorInput.click();
       };
 
+      // Role buttons: WK and Bowler
+      const wkBtn = document.createElement('button');
+      wkBtn.className = `role-btn ${p.role === 'keeper' ? 'active-role' : ''}`;
+      wkBtn.textContent = 'WK';
+      wkBtn.title = 'Assign & place as Wicketkeeper';
+      wkBtn.onclick = (e) => {
+        e.stopPropagation();
+        assignRole(p.id, 'keeper');
+      };
+
+      const bowlBtn = document.createElement('button');
+      bowlBtn.className = `role-btn ${p.role === 'bowler' ? 'active-role' : ''}`;
+      bowlBtn.textContent = 'B';
+      bowlBtn.title = 'Assign & place as Bowler';
+      bowlBtn.onclick = (e) => {
+        e.stopPropagation();
+        assignRole(p.id, 'bowler');
+      };
+
       card.appendChild(num);
       card.appendChild(swatch);
       card.appendChild(input);
+      card.appendChild(wkBtn);
+      card.appendChild(bowlBtn);
       card.appendChild(colorInput);
-
-      if (isOnField) {
-        const badge = document.createElement('span');
-        badge.className = 'on-field-badge';
-        badge.textContent = 'ON';
-        card.appendChild(badge);
-      }
 
       list.appendChild(card);
     });
-  }
-
-  function getStrikerCoords() {
-    const isBottom = document.getElementById('strikerEnd').value === 'bottom';
-    return {
-      x: CX,
-      y: isBottom ? (CY + PITCH_H / 2 - 20) : (CY - PITCH_H / 2 + 20),
-      isBottom: isBottom
-    };
   }
 
   function setMode(mode) {
@@ -545,6 +642,11 @@
     const dist = Math.hypot(dx, dy);
 
     if (dist < 85 && dy < 0 && Math.abs(dx) < 24) return "Wicketkeeper";
+
+    // Near non-striker's end
+    if (Math.hypot(x - CX, y - (striker.isBottom ? (CY - PITCH_H / 2 + 10) : (CY + PITCH_H / 2 - 10))) < 30) {
+      return "Bowler";
+    }
 
     if (dy < 15 && dx < -15 && dx > -120 && dist < 130) {
       if (dx > -42) return "1st Slip";
@@ -739,6 +841,7 @@
     drawFieldBase();
 
     const showPosLabels = document.getElementById('togglePosLabels').checked;
+    const showPlayerNames = document.getElementById('togglePlayerNames').checked;
 
     let deepCount = 0;
     let ringCount = 0;
@@ -774,9 +877,17 @@
           ctx.stroke();
         }
 
-        // Fielder Label (Name + Position)
+        // Construct label text based on toggles
         const posName = getPositionName(el.x, el.y);
-        const labelText = showPosLabels ? `${el.playerName || 'Fielder'}: ${posName}` : (el.playerName || '');
+        let labelText = '';
+
+        if (showPlayerNames && showPosLabels) {
+          labelText = `${el.playerName || 'Fielder'}: ${posName}`;
+        } else if (showPlayerNames && !showPosLabels) {
+          labelText = el.playerName || '';
+        } else if (!showPlayerNames && showPosLabels) {
+          labelText = posName;
+        }
 
         if (labelText) {
           ctx.save();
@@ -834,7 +945,6 @@
         isDragging = true;
         draggedDot = hitDot;
         dragMoved = false;
-        // Set active player to this dot's player
         const rIdx = roster.findIndex(p => p.id === hitDot.playerId);
         if (rIdx !== -1) {
           activePlayerIndex = rIdx;
@@ -883,11 +993,9 @@
     if (currentMode === 'dot') {
       const hitDot = elements.find(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= 18);
       if (!hitDot) {
-        // Choose active player or next unassigned player
         let p = roster[activePlayerIndex];
         const alreadyOnField = elements.some(el => el.type === 'dot' && el.playerId === p.id);
         if (alreadyOnField) {
-          // Find next player not yet placed
           const unassigned = roster.find(candidate => !elements.some(el => el.type === 'dot' && el.playerId === candidate.id));
           if (unassigned) {
             p = unassigned;
@@ -904,7 +1012,6 @@
           playerName: p.name
         });
 
-        // Advance to next player
         if (activePlayerIndex < 10) {
           activePlayerIndex++;
         }
@@ -962,12 +1069,12 @@
     if (confirm("Reset all field marks?")) {
       elements = [];
       arrowStart = null;
+      roster.forEach(p => p.role = null);
       renderRoster();
       drawCanvas();
     }
   }
 
-  // Export includes the team sheet legend neatly at the bottom
   function exportImage() {
     const exportCanvas = document.createElement('canvas');
     const expCtx = exportCanvas.getContext('2d');
@@ -976,10 +1083,8 @@
     exportCanvas.width = canvas.width;
     exportCanvas.height = canvas.height + legendHeight;
 
-    // Draw field
     expCtx.drawImage(canvas, 0, 0);
 
-    // Draw Legend panel
     expCtx.fillStyle = "#1e1e24";
     expCtx.fillRect(0, canvas.height, exportCanvas.width, legendHeight);
 
@@ -987,7 +1092,6 @@
     expCtx.font = "bold 13px -apple-system, BlinkMacSystemFont, sans-serif";
     expCtx.fillText("TEAM SHEET & FIELDING ROSTER", 25, canvas.height + 25);
 
-    // 2 rows of player cards
     const startX = 25;
     const startY = canvas.height + 45;
     const colW = 125;
@@ -999,7 +1103,6 @@
       const px = startX + (col * colW);
       const py = startY + (row * rowH);
 
-      // Swatch
       expCtx.beginPath();
       expCtx.arc(px + 6, py + 8, 6, 0, Math.PI * 2);
       expCtx.fillStyle = p.color;
@@ -1008,11 +1111,11 @@
       expCtx.lineWidth = 1;
       expCtx.stroke();
 
-      // Name
       expCtx.fillStyle = "#ffffff";
       expCtx.font = "11px -apple-system, sans-serif";
       expCtx.textAlign = "left";
-      expCtx.fillText(`${p.id}. ${p.name}`, px + 18, py + 12);
+      const roleTag = p.role === 'keeper' ? ' (WK)' : (p.role === 'bowler' ? ' (B)' : '');
+      expCtx.fillText(`${p.id}. ${p.name}${roleTag}`, px + 18, py + 12);
     });
 
     const link = document.createElement('a');
@@ -1044,7 +1147,7 @@
 
   function saveCurrentScenario() {
     const currentTitle = document.getElementById('diagTitle').value.trim();
-    const name = prompt("Enter a scenario name to save (e.g. 'Powerplay RHB', 'Spin Trap'):", currentTitle);
+    const name = prompt("Enter a scenario name to save (e.g. 'Powerplay RHB', 'Spin Attack'):", currentTitle);
     if (!name) return;
 
     const scenarios = getSavedScenarios();
