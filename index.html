@@ -610,6 +610,34 @@
 
   let activeTeamCode = localStorage.getItem('cricket_active_team_code') || '';
 
+  // ==========================================
+  // --- CONFIGURABLE FIELDING POSITIONS ---
+  // ==========================================
+  const FIELDING_POSITION_CONFIG = [
+    // --- OFF SIDE (Negative polar angles) ---
+    { minAngle: -180, maxAngle: -145, close: "Fly Slip",        ring: "Fly Slip",            deep: "Deep Third" },
+    { minAngle: -145, maxAngle: -105, close: "Backward Point",  ring: "Backward Point",      deep: "Deep Bwd Point" },
+    { minAngle: -105, maxAngle: -70,  close: "Point",           ring: "Point",               deep: "Deep Point" },
+    { minAngle: -70,  maxAngle: -40,  close: "Cover Point",     ring: "Cover",               deep: "Deep Cover" },
+    { minAngle: -40,  maxAngle: -15,  close: "Extra Cover",     ring: "Extra Cover",         deep: "Deep Extra Cover" },
+    { minAngle: -15,  maxAngle: 0,    close: "Silly Mid-Off",   ring: "Mid-Off",             deep: "Long-Off" },
+
+    // --- LEG SIDE (Positive polar angles) ---
+    { minAngle: 0,    maxAngle: 15,   close: "Silly Mid-On",    ring: "Mid-On",              deep: "Long-On" },
+    { minAngle: 15,   maxAngle: 50,   close: "Short Mid-Wkt",   ring: "Mid-Wicket",          deep: "Deep Mid-Wkt" },
+    { minAngle: 50,   maxAngle: 80,   close: "Short Mid-Wkt",   ring: "Mid-Wicket",          deep: "Cow Corner" },
+    { minAngle: 80,   maxAngle: 115,  close: "Short Leg",       ring: "Square Leg",          deep: "Deep Sq Leg" },
+    { minAngle: 115,  maxAngle: 155,  close: "Leg Slip",        ring: "Bwd Square Leg",      deep: "Deep Bwd Sq" },
+    { minAngle: 155,  maxAngle: 180,  close: "Leg Slip",        ring: "Fine Leg",            deep: "Deep Fine Leg" }
+  ];
+
+  // Configurable Distance Thresholds (in canvas pixels)
+  const DISTANCE_CONFIG = {
+    closeMaxPx: 90,        // Fielder considered "Silly" or "Short"
+    ringEllipseX: 180,     // 30-yard oval width radius
+    ringEllipseY: 210      // 30-yard oval height radius
+  };
+
   const canvas = document.getElementById('groundCanvas');
   const ctx = canvas.getContext('2d');
 
@@ -864,7 +892,7 @@
     const isKeeper = (distFromStriker < 85 && dy < 0 && Math.abs(dx) < 24);
     const isSlipsGully = (!isKeeper && dy < 15 && dx < -15 && dx > -120 && distFromStriker < 130);
 
-    const normDistCenter = Math.pow((x - CX) / 180, 2) + Math.pow((y - CY) / 210, 2);
+    const normDistCenter = Math.pow((x - CX) / DISTANCE_CONFIG.ringEllipseX, 2) + Math.pow((y - CY) / DISTANCE_CONFIG.ringEllipseY, 2);
     const isDeep = normDistCenter > 1.0;
 
     const inFrontOfCrease = dy > 0;
@@ -879,6 +907,7 @@
     };
   }
 
+  // Position naming using the configurable sector lookup table
   function getPositionName(x, y) {
     const striker = getStrikerCoords();
     const isLHB = document.getElementById('batterHand').value === 'LHB';
@@ -894,35 +923,36 @@
 
     const dist = Math.hypot(dx, dy);
 
+    // 1. Fixed Stumps / Crease Zones
     if (dist < 85 && dy < 0 && Math.abs(dx) < 24) return "Wicketkeeper";
 
-    if (Math.hypot(x - CX, y - (striker.isBottom ? (CY - PITCH_H / 2 + 10) : (CY + PITCH_H / 2 - 10))) < 30) {
-      return "Bowler";
-    }
+    const nonStrikerY = striker.isBottom ? (CY - PITCH_H / 2 + 10) : (CY + PITCH_H / 2 - 10);
+    if (Math.hypot(x - CX, y - nonStrikerY) < 30) return "Bowler";
 
+    // 2. Slips Box (Behind square on off-side)
     if (dy < 15 && dx < -15 && dx > -120 && dist < 130) {
       if (dx > -42) return "1st Slip";
       if (dx > -75) return "2nd Slip";
       return "Gully";
     }
 
+    // 3. Distance Layer Checks
+    const isClose = dist < DISTANCE_CONFIG.closeMaxPx;
+    const isDeep = (Math.pow((x - CX) / DISTANCE_CONFIG.ringEllipseX, 2) + 
+                    Math.pow((y - CY) / DISTANCE_CONFIG.ringEllipseY, 2)) > 1.0;
+
+    // 4. Polar Angle Calculation (-180° to +180°)
     let theta = Math.atan2(dx, dy) * (180 / Math.PI);
-    const isClose = dist < 90;
-    const isDeep = Math.pow((x - CX) / 180, 2) + Math.pow((y - CY) / 210, 2) > 1.0;
 
-    if (theta < -145) return isDeep ? "Deep Third" : "Fly Slip";
-    if (theta >= -145 && theta < -105) return isDeep ? "Deep Bwd Point" : (isClose ? "Backward Point" : "Bwd Point");
-    if (theta >= -105 && theta < -70)  return isDeep ? "Deep Point" : "Point";
-    if (theta >= -70 && theta < -40)   return isDeep ? "Deep Cover" : (isClose ? "Cover Point" : "Cover");
-    if (theta >= -40 && theta < -15)   return isDeep ? "Deep Extra Cover" : "Extra Cover";
-    if (theta >= -15 && theta < 0)     return isDeep ? "Long-Off" : (isClose ? "Silly Mid-Off" : "Mid-Off");
+    // 5. Declarative Sector Lookup
+    const sector = FIELDING_POSITION_CONFIG.find(s => theta >= s.minAngle && theta < s.maxAngle);
+    if (sector) {
+      if (isDeep) return sector.deep;
+      if (isClose) return sector.close;
+      return sector.ring;
+    }
 
-    if (theta >= 0 && theta < 15)      return isDeep ? "Long-On" : (isClose ? "Silly Mid-On" : "Mid-On");
-    if (theta >= 15 && theta < 50)     return isDeep ? "Deep Mid-Wkt" : (isClose ? "Short Mid-Wkt" : "Mid-Wicket");
-    if (theta >= 50 && theta < 80)     return isDeep ? "Cow Corner" : "Mid-Wicket";
-    if (theta >= 80 && theta < 115)    return isDeep ? "Deep Sq Leg" : (isClose ? "Short Leg" : "Square Leg");
-    if (theta >= 115 && theta < 155)   return isDeep ? "Deep Bwd Sq" : "Bwd Square Leg";
-    return isDeep ? "Deep Fine Leg" : (isClose ? "Leg Slip" : "Fine Leg");
+    return "Fielder";
   }
 
   function drawFieldBase() {
@@ -1463,7 +1493,7 @@
 
     if (!supabaseClient) {
       updateSyncUI(false, `Local Only (Anon Key needed)`);
-      alert("Please paste your real Supabase Anon Key into the code first.");
+      alert("Please check your Supabase credentials.");
       return;
     }
 
