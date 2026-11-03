@@ -31,8 +31,8 @@
       z-index: 10;
     }
     #roster-sidebar {
-      width: 290px;
-      min-width: 290px;
+      width: 295px;
+      min-width: 295px;
       background: var(--panel);
       padding: 16px;
       display: flex;
@@ -143,10 +143,10 @@
       background: #29302b;
     }
     .roster-num {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-weight: bold;
       color: #9e9ea7;
-      width: 14px;
+      width: 16px;
     }
     .roster-input {
       flex: 1;
@@ -196,6 +196,14 @@
       background: #2e7d32;
       border-color: #81c784;
       color: #ffffff;
+    }
+    .on-field-badge {
+      font-size: 0.65rem;
+      padding: 1px 4px;
+      border-radius: 3px;
+      background: #388e3c;
+      color: white;
+      font-weight: bold;
     }
 
     /* Feedback & Modals */
@@ -350,13 +358,13 @@
   <canvas id="groundCanvas" width="800" height="920"></canvas>
 </div>
 
-<!-- Right Roster & Team Sheet Sidebar -->
+<!-- Right Roster & Team Sheet Sidebar (14 Players) -->
 <div id="roster-sidebar">
   <div style="display: flex; justify-content: space-between; align-items: center;">
-    <h2>Team Roster (11)</h2>
-    <span style="font-size: 0.72rem; opacity: 0.65;">WK / Bowler</span>
+    <h2>Squad Roster (14)</h2>
+    <span style="font-size: 0.72rem; opacity: 0.65;">Select Active</span>
   </div>
-  <div id="roster-list" style="display: flex; flex-direction: column; gap: 6px; overflow-y: auto;">
+  <div id="roster-list" style="display: flex; flex-direction: column; gap: 5px; overflow-y: auto;">
     <!-- Rendered dynamically by JS -->
   </div>
 </div>
@@ -392,13 +400,15 @@
   let arrowStart = null;
   let elements = [];
 
+  // 14 distinct high-contrast colors
   const DEFAULT_COLORS = [
     '#ffffff', '#ffd600', '#ff6d00', '#ff1744', 
-    '#f06292', '#ab47bc', '#00e676', '#00b0ff', 
-    '#1565c0', '#00e5ff', '#a1887f'
+    '#f06292', '#ba68c8', '#00e676', '#00b0ff', 
+    '#1565c0', '#00e5ff', '#a1887f', '#76ff03', 
+    '#ff9100', '#c5cae9'
   ];
 
-  let roster = Array.from({ length: 11 }, (_, i) => ({
+  let roster = Array.from({ length: 14 }, (_, i) => ({
     id: i + 1,
     name: `Player ${i + 1}`,
     color: DEFAULT_COLORS[i],
@@ -428,13 +438,11 @@
   function getAutoPositions() {
     const striker = getStrikerCoords();
     if (!striker.isBottom) {
-      // Striker at North End
       return {
-        keeper: { x: CX, y: striker.y - 48 }, // Behind striker's stumps
-        bowler: { x: CX + 14, y: CY + PITCH_H / 2 + 8 } // Beside non-striker stumps
+        keeper: { x: CX, y: striker.y - 48 },
+        bowler: { x: CX + 14, y: CY + PITCH_H / 2 + 8 }
       };
     } else {
-      // Striker at South End
       return {
         keeper: { x: CX, y: striker.y + 48 },
         bowler: { x: CX + 14, y: CY - PITCH_H / 2 - 8 }
@@ -447,16 +455,13 @@
     if (!player) return;
 
     if (player.role === role) {
-      // Deselect role if toggled off
       player.role = null;
     } else {
-      // Clear this role from any other player
       roster.forEach(p => {
         if (p.role === role) p.role = null;
       });
       player.role = role;
 
-      // Auto-place player in authentic position
       const autoPos = getAutoPositions();
       const targetPos = (role === 'keeper') ? autoPos.keeper : autoPos.bowler;
 
@@ -479,7 +484,6 @@
     drawCanvas();
   }
 
-  // When ends switch, update keeper and bowler positions automatically
   function updatePitchEnds() {
     const autoPos = getAutoPositions();
     roster.forEach(p => {
@@ -500,6 +504,8 @@
     list.innerHTML = '';
 
     roster.forEach((p, idx) => {
+      const placedCount = elements.filter(el => el.type === 'dot' && el.playerId === p.id).length;
+
       const card = document.createElement('div');
       card.className = `roster-card ${idx === activePlayerIndex ? 'active-player' : ''}`;
       card.onclick = (e) => {
@@ -552,7 +558,6 @@
         colorInput.click();
       };
 
-      // Role buttons: WK and Bowler
       const wkBtn = document.createElement('button');
       wkBtn.className = `role-btn ${p.role === 'keeper' ? 'active-role' : ''}`;
       wkBtn.textContent = 'WK';
@@ -574,6 +579,15 @@
       card.appendChild(num);
       card.appendChild(swatch);
       card.appendChild(input);
+
+      if (placedCount > 0) {
+        const countBadge = document.createElement('span');
+        countBadge.className = 'on-field-badge';
+        countBadge.textContent = placedCount > 1 ? `${placedCount}x` : 'ON';
+        countBadge.title = `${placedCount} dot(s) on field`;
+        card.appendChild(countBadge);
+      }
+
       card.appendChild(wkBtn);
       card.appendChild(bowlBtn);
       card.appendChild(colorInput);
@@ -643,7 +657,6 @@
 
     if (dist < 85 && dy < 0 && Math.abs(dx) < 24) return "Wicketkeeper";
 
-    // Near non-striker's end
     if (Math.hypot(x - CX, y - (striker.isBottom ? (CY - PITCH_H / 2 + 10) : (CY + PITCH_H / 2 - 10))) < 30) {
       return "Bowler";
     }
@@ -877,7 +890,6 @@
           ctx.stroke();
         }
 
-        // Construct label text based on toggles
         const posName = getPositionName(el.x, el.y);
         let labelText = '';
 
@@ -993,16 +1005,8 @@
     if (currentMode === 'dot') {
       const hitDot = elements.find(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= 18);
       if (!hitDot) {
-        let p = roster[activePlayerIndex];
-        const alreadyOnField = elements.some(el => el.type === 'dot' && el.playerId === p.id);
-        if (alreadyOnField) {
-          const unassigned = roster.find(candidate => !elements.some(el => el.type === 'dot' && el.playerId === candidate.id));
-          if (unassigned) {
-            p = unassigned;
-            activePlayerIndex = roster.indexOf(p);
-          }
-        }
-
+        // Allows adding the active player repeatedly to demonstrate movements
+        const p = roster[activePlayerIndex];
         elements.push({
           type: 'dot',
           x,
@@ -1012,9 +1016,6 @@
           playerName: p.name
         });
 
-        if (activePlayerIndex < 10) {
-          activePlayerIndex++;
-        }
         renderRoster();
         drawCanvas();
       }
@@ -1079,7 +1080,7 @@
     const exportCanvas = document.createElement('canvas');
     const expCtx = exportCanvas.getContext('2d');
 
-    const legendHeight = 120;
+    const legendHeight = 150; // Scaled for 14 squad members
     exportCanvas.width = canvas.width;
     exportCanvas.height = canvas.height + legendHeight;
 
@@ -1090,21 +1091,21 @@
 
     expCtx.fillStyle = "#a5d6a7";
     expCtx.font = "bold 13px -apple-system, BlinkMacSystemFont, sans-serif";
-    expCtx.fillText("TEAM SHEET & FIELDING ROSTER", 25, canvas.height + 25);
+    expCtx.fillText("TEAM SHEET & SQUAD ROSTER (14)", 25, canvas.height + 24);
 
     const startX = 25;
     const startY = canvas.height + 45;
-    const colW = 125;
-    const rowH = 30;
+    const colW = 150;
+    const rowH = 26;
 
     roster.forEach((p, i) => {
-      const col = i % 6;
-      const row = Math.floor(i / 6);
+      const col = i % 5;
+      const row = Math.floor(i / 5);
       const px = startX + (col * colW);
       const py = startY + (row * rowH);
 
       expCtx.beginPath();
-      expCtx.arc(px + 6, py + 8, 6, 0, Math.PI * 2);
+      expCtx.arc(px + 6, py + 6, 6, 0, Math.PI * 2);
       expCtx.fillStyle = p.color;
       expCtx.fill();
       expCtx.strokeStyle = "#ffffff";
@@ -1115,7 +1116,7 @@
       expCtx.font = "11px -apple-system, sans-serif";
       expCtx.textAlign = "left";
       const roleTag = p.role === 'keeper' ? ' (WK)' : (p.role === 'bowler' ? ' (B)' : '');
-      expCtx.fillText(`${p.id}. ${p.name}${roleTag}`, px + 18, py + 12);
+      expCtx.fillText(`${p.id}. ${p.name}${roleTag}`, px + 18, py + 10);
     });
 
     const link = document.createElement('a');
@@ -1147,7 +1148,7 @@
 
   function saveCurrentScenario() {
     const currentTitle = document.getElementById('diagTitle').value.trim();
-    const name = prompt("Enter a scenario name to save (e.g. 'Powerplay RHB', 'Spin Attack'):", currentTitle);
+    const name = prompt("Enter a scenario name to save (e.g. 'Powerplay RHB', 'Spin Trap'):", currentTitle);
     if (!name) return;
 
     const scenarios = getSavedScenarios();
@@ -1175,7 +1176,13 @@
       document.getElementById('diagTitle').value = data.title || name;
       document.getElementById('batterHand').value = data.batterHand || 'RHB';
       document.getElementById('strikerEnd').value = data.strikerEnd || 'top';
-      if (data.roster) roster = data.roster;
+      if (data.roster) {
+        // Guarantee 14 players if an older 11-player scenario is loaded
+        roster = Array.from({ length: 14 }, (_, i) => {
+          if (data.roster[i]) return data.roster[i];
+          return { id: i + 1, name: `Player ${i + 1}`, color: DEFAULT_COLORS[i], role: null };
+        });
+      }
       elements = JSON.parse(JSON.stringify(data.elements || []));
       arrowStart = null;
       renderRoster();
