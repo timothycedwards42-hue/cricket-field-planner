@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Cricket Field Diagram Planner</title>
+  
+  <!-- Supabase CDN Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
     :root {
       --bg: #1e1e24;
@@ -170,6 +174,31 @@
       font-size: 0.8rem;
     }
     .edit-squad-btn:hover { background: #2e5339; color: #fff; }
+
+    /* Cloud Sync Box */
+    .sync-card {
+      background: #202029;
+      border: 1px solid #3c3c4d;
+      padding: 10px;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .sync-status {
+      font-size: 0.72rem;
+      color: #bbb;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .sync-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #777;
+    }
+    .sync-dot.connected { background: #00e676; box-shadow: 0 0 6px #00e676; }
 
     .roster-card {
       display: flex;
@@ -395,6 +424,18 @@
   <button class="drawer-close-btn" onclick="toggleDrawer('sidebar', false)">✕ Close</button>
   <h2>Tactics Builder</h2>
 
+  <!-- Cloud Sync Panel -->
+  <div class="sync-card">
+    <div class="sync-status">
+      <div id="syncDot" class="sync-dot"></div>
+      <span id="syncText">Cloud Sync: Local Only</span>
+    </div>
+    <div style="display: flex; gap: 6px;">
+      <input type="text" id="teamCodeInput" placeholder="Team PIN / Code (e.g. U13REPS)" style="text-transform: uppercase;">
+      <button class="small-btn" onclick="connectTeamCode()" style="background: #2e7d32; border-color: #81c784;">Sync</button>
+    </div>
+  </div>
+
   <div class="control-group">
     <label>Diagram Title</label>
     <input type="text" id="diagTitle" value="Standard Field Plan" oninput="drawCanvas()">
@@ -520,11 +561,10 @@
   <div class="modal-card" style="max-width: 520px; max-height: 82vh; overflow-y: auto;">
     <h3 style="color: #a5d6a7; font-size: 1.05rem;">Field Tactics Builder Guide</h3>
     <ul style="font-size: 0.82rem; line-height: 1.55; padding-left: 18px; color: #ddd; display: flex; flex-direction: column; gap: 6px;">
-      <li><strong>Selecting Players:</strong> Tap a player in the Squad panel to make them active. Then tap on the field to place their dot.</li>
-      <li><strong>Movement & Shifts:</strong> Tap the field again with the same player active to place a second dot, then link them using <em>➔ Draw Move Arrow</em>.</li>
-      <li><strong>Core Roles (WK & Bowler):</strong> Tap <strong>WK</strong> or <strong>B</strong> on any player to position them automatically.</li>
+      <li><strong>Cloud Syncing Across Devices:</strong> Enter a Team Code (e.g. <em>U13REPS</em>) in the sidebar and tap <em>Sync</em>. Everything you save immediately syncs across all devices using that code.</li>
       <li><strong>Touchscreen Controls:</strong> Tap to place a player dot. Press and drag any dot with your finger to move them smoothly across the turf.</li>
       <li><strong>Sidebars on Mobile/Tablet:</strong> Tap <em>⚙️ Controls</em> or <em>👥 Squad</em> at the bottom of the screen to open the slide-out drawers.</li>
+      <li><strong>Squad Management:</strong> Use <em>📝 Edit List</em> in the squad drawer to paste your roster from WhatsApp/email.</li>
       <li><strong>Restrictions & Safety:</strong> The top-right badge audits fielders in the deep vs inner ring, and warns if any child is inside the 10m safety arc.</li>
     </ul>
     <div class="modal-actions" style="margin-top: 10px;">
@@ -557,6 +597,19 @@
 </div>
 
 <script>
+  // ==========================================
+  // --- CONFIGURED SUPABASE CREDENTIALS ---
+  // ==========================================
+  const SUPABASE_URL = "https://ovrjwhbtkndfmamwxvci.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_14eR8bqUa0HUhiRIUt0exQ_dxwL7A9n";
+
+  let supabaseClient = null;
+  if (SUPABASE_URL && SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.includes("YOUR_SUPABASE")) {
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
+  let activeTeamCode = localStorage.getItem('cricket_active_team_code') || '';
+
   const canvas = document.getElementById('groundCanvas');
   const ctx = canvas.getContext('2d');
 
@@ -657,6 +710,7 @@
     }
     renderRoster();
     drawCanvas();
+    pushToCloud();
   }
 
   function updatePitchEnds() {
@@ -676,7 +730,6 @@
 
   function selectPlayer(idx) {
     activePlayerIndex = idx;
-    // Reset any pending canvas drag state so clicking sidebar never spawns dots
     isDragging = false;
     draggedDot = null;
     dragMoved = false;
@@ -717,6 +770,7 @@
         });
         drawCanvas();
       };
+      input.onchange = () => pushToCloud();
 
       const colorInput = document.createElement('input');
       colorInput.type = 'color';
@@ -731,6 +785,7 @@
         });
         renderRoster();
         drawCanvas();
+        pushToCloud();
       };
 
       const swatch = document.createElement('div');
@@ -1138,7 +1193,6 @@
   }
 
   function handlePointerDown(e) {
-    // Only respond if the touch/click physically began on the canvas element
     if (e.target !== canvas) return;
 
     pointerStartOnCanvas = true;
@@ -1173,7 +1227,6 @@
   }
 
   function handlePointerUp(e) {
-    // If the touch didn't start on the canvas (e.g. clicked on the sidebar), ignore completely
     if (!pointerStartOnCanvas) {
       isDragging = false;
       draggedDot = null;
@@ -1187,6 +1240,7 @@
       isDragging = false;
       draggedDot = null;
       drawCanvas();
+      pushToCloud();
       return;
     }
 
@@ -1195,7 +1249,6 @@
       return;
     }
 
-    // Verify click is physically within the visible canvas boundary
     const rect = canvas.getBoundingClientRect();
     const coords = getCanvasCoordinates(e);
 
@@ -1205,7 +1258,7 @@
       coords.rawClientY < rect.top || 
       coords.rawClientY > rect.bottom
     ) {
-      return; // Canceled: outside canvas
+      return;
     }
 
     const { x, y } = coords;
@@ -1224,6 +1277,7 @@
         });
         renderRoster();
         drawCanvas();
+        pushToCloud();
       }
     } else if (currentMode === 'arrow') {
       const playerColor = roster[activePlayerIndex]?.color || '#ffffff';
@@ -1241,12 +1295,14 @@
         });
         arrowStart = null;
         drawCanvas();
+        pushToCloud();
       }
     } else if (currentMode === 'label') {
       const text = document.getElementById('labelText').value.trim();
       if (text) {
         elements.push({ type: 'label', x, y, text: text, color: '#ffffff' });
         drawCanvas();
+        pushToCloud();
       }
     } else if (currentMode === 'delete') {
       const idx = elements.findIndex(el => {
@@ -1261,6 +1317,7 @@
         elements.splice(idx, 1);
         renderRoster();
         drawCanvas();
+        pushToCloud();
       }
     }
   }
@@ -1286,6 +1343,7 @@
     arrowStart = null;
     renderRoster();
     drawCanvas();
+    pushToCloud();
   }
 
   function clearField() {
@@ -1295,6 +1353,7 @@
       roster.forEach(p => p.role = null);
       renderRoster();
       drawCanvas();
+      pushToCloud();
     }
   }
 
@@ -1389,6 +1448,102 @@
     }
   }
 
+  // ==========================================
+  // --- SUPABASE CLOUD SYNC ENGINE ---
+  // ==========================================
+  async function connectTeamCode() {
+    const input = document.getElementById('teamCodeInput').value.trim().toUpperCase();
+    if (!input) {
+      alert("Please enter a Team PIN or Code (e.g. U13REPS).");
+      return;
+    }
+
+    activeTeamCode = input;
+    localStorage.setItem('cricket_active_team_code', activeTeamCode);
+
+    if (!supabaseClient) {
+      updateSyncUI(false, `Local Only (Anon Key needed)`);
+      alert("Please paste your real Supabase Anon Key into the code first.");
+      return;
+    }
+
+    updateSyncUI(false, "Connecting to Cloud...");
+
+    try {
+      const { data, error } = await supabaseClient
+        .from('team_tactics')
+        .select('data')
+        .eq('team_code', activeTeamCode)
+        .maybeSingle();
+
+      if (error) {
+        console.error(error);
+        updateSyncUI(false, "Cloud Error");
+        return;
+      }
+
+      if (data && data.data) {
+        if (data.data.scenarios) {
+          localStorage.setItem('cricket_field_scenarios', JSON.stringify(data.data.scenarios));
+          refreshScenarioDropdown();
+        }
+        if (data.data.squadLists) {
+          localStorage.setItem('cricket_saved_squad_lists', JSON.stringify(data.data.squadLists));
+          refreshSquadListDropdown();
+        }
+        if (data.data.currentRoster) {
+          roster = data.data.currentRoster;
+          renderRoster();
+        }
+        if (data.data.currentElements) {
+          elements = data.data.currentElements;
+          drawCanvas();
+        }
+        updateSyncUI(true, `Synced: ${activeTeamCode}`);
+        alert(`Connected! Downloaded latest squads and scenarios for ${activeTeamCode}.`);
+      } else {
+        await pushToCloud();
+        updateSyncUI(true, `Synced: ${activeTeamCode}`);
+        alert(`New cloud team created for "${activeTeamCode}"! Your setups are now saved online.`);
+      }
+    } catch (err) {
+      console.error(err);
+      updateSyncUI(false, "Offline / Connection Error");
+    }
+  }
+
+  async function pushToCloud() {
+    if (!supabaseClient || !activeTeamCode) return;
+
+    const cloudPayload = {
+      scenarios: getSavedScenarios(),
+      squadLists: getSavedSquadLists(),
+      currentRoster: roster,
+      currentElements: elements,
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      await supabaseClient
+        .from('team_tactics')
+        .upsert({
+          team_code: activeTeamCode,
+          data: cloudPayload,
+          updated_at: new Date().toISOString()
+        });
+      updateSyncUI(true, `Synced: ${activeTeamCode}`);
+    } catch (err) {
+      console.error("Cloud push failed:", err);
+    }
+  }
+
+  function updateSyncUI(connected, text) {
+    const dot = document.getElementById('syncDot');
+    const label = document.getElementById('syncText');
+    if (dot) dot.classList.toggle('connected', connected);
+    if (label) label.textContent = text;
+  }
+
   // --- SQUAD LIST BULK PASTE & MANAGEMENT ---
   function openSquadManagerModal() {
     const names = roster.map(p => p.name).join('\n');
@@ -1421,6 +1576,7 @@
     renderRoster();
     drawCanvas();
     closeSquadManagerModal();
+    pushToCloud();
   }
 
   function getSavedSquadLists() {
@@ -1454,6 +1610,7 @@
     localStorage.setItem('cricket_saved_squad_lists', JSON.stringify(lists));
     refreshSquadListDropdown();
     document.getElementById('squadListSelect').value = squadName;
+    pushToCloud();
     alert(`Squad list "${squadName}" saved!`);
   }
 
@@ -1490,6 +1647,7 @@
       delete lists[name];
       localStorage.setItem('cricket_saved_squad_lists', JSON.stringify(lists));
       refreshSquadListDropdown();
+      pushToCloud();
     }
   }
 
@@ -1531,6 +1689,7 @@
     localStorage.setItem('cricket_field_scenarios', JSON.stringify(scenarios));
     refreshScenarioDropdown();
     document.getElementById('scenarioSelect').value = name;
+    pushToCloud();
     alert(`Scenario "${name}" saved!`);
   }
 
@@ -1568,6 +1727,7 @@
       delete scenarios[name];
       localStorage.setItem('cricket_field_scenarios', JSON.stringify(scenarios));
       refreshScenarioDropdown();
+      pushToCloud();
       alert(`Deleted "${name}".`);
     }
   }
@@ -1616,11 +1776,19 @@
     });
   }
 
+  // Initialize
+  if (activeTeamCode) {
+    document.getElementById('teamCodeInput').value = activeTeamCode;
+  }
   renderRoster();
   refreshScenarioDropdown();
   refreshSquadListDropdown();
   loadFromURLHash();
   drawCanvas();
+
+  if (activeTeamCode && supabaseClient) {
+    connectTeamCode();
+  }
 </script>
 </body>
 </html>
