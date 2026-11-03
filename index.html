@@ -21,7 +21,6 @@
       touch-action: manipulation;
     }
     
-    /* Sidebars */
     #sidebar {
       width: 290px;
       min-width: 290px;
@@ -118,6 +117,7 @@
       cursor: pointer;
       font-weight: bold;
       font-size: 0.9rem;
+      text-align: center;
     }
     .action-btn:hover { background: #2e7d32; }
     .secondary-btn {
@@ -130,6 +130,18 @@
       font-size: 0.82rem;
     }
     .secondary-btn:hover { background: #b71c1c; }
+    .share-btn {
+      background: #1565c0;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 0.85rem;
+      text-align: center;
+    }
+    .share-btn:hover { background: #0d47a1; }
     .scenario-row {
       display: flex;
       gap: 6px;
@@ -159,7 +171,6 @@
     }
     .edit-squad-btn:hover { background: #2e5339; color: #fff; }
 
-    /* Roster Cards */
     .roster-card {
       display: flex;
       align-items: center;
@@ -235,7 +246,6 @@
       font-weight: bold;
     }
 
-    /* Modals & Buttons */
     .feedback-link-btn {
       background: transparent;
       border: 1px solid #555;
@@ -291,7 +301,6 @@
       margin-top: 6px;
     }
 
-    /* Canvas Viewport */
     #canvas-container {
       flex: 1;
       display: flex;
@@ -307,13 +316,12 @@
       border-radius: 8px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.5);
       cursor: crosshair;
-      touch-action: none; /* CRITICAL: Prevents iPad/phone gestures from canceling drag */
+      touch-action: none;
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
     }
 
-    /* Mobile/Tablet Drawer Toggle Bar */
     .mobile-tab-bar {
       display: none;
       position: fixed;
@@ -339,10 +347,6 @@
       font-weight: 600;
       cursor: pointer;
     }
-    .mobile-tab-btn.active-tab {
-      background: #2e7d32;
-      border-color: #81c784;
-    }
     .drawer-close-btn {
       display: none;
       background: #444;
@@ -356,7 +360,6 @@
       align-self: flex-end;
     }
 
-    /* Responsive Breakpoints for Tablet / iPad / Phone */
     @media (max-width: 1024px) {
       .mobile-tab-bar { display: flex; }
       .drawer-close-btn { display: block; }
@@ -458,7 +461,13 @@
   </div>
 
   <div class="control-group" style="margin-top: auto; display: flex; flex-direction: column; gap: 6px;">
+    <button class="share-btn" onclick="copyShareableLink()">🔗 Copy Shareable Link</button>
     <button class="action-btn" onclick="exportImage()">⬇ Export PNG Image</button>
+    <div style="display: flex; gap: 6px;">
+      <button class="small-btn" style="flex: 1;" onclick="exportBackupData()">💾 Backup</button>
+      <button class="small-btn" style="flex: 1;" onclick="document.getElementById('importBackupInput').click()">📥 Restore</button>
+      <input type="file" id="importBackupInput" style="display: none;" accept=".json" onchange="importBackupData(event)">
+    </div>
     <button class="feedback-link-btn" onclick="openHelpModal()">📖 How to Use & Guide</button>
     <button class="feedback-link-btn" onclick="openFeedbackModal()">💬 Send Feedback</button>
   </div>
@@ -516,11 +525,10 @@
   <div class="modal-card" style="max-width: 520px; max-height: 82vh; overflow-y: auto;">
     <h3 style="color: #a5d6a7; font-size: 1.05rem;">Field Tactics Builder Guide</h3>
     <ul style="font-size: 0.82rem; line-height: 1.55; padding-left: 18px; color: #ddd; display: flex; flex-direction: column; gap: 6px;">
+      <li><strong>Sharing Across Devices:</strong> Click <em>🔗 Copy Shareable Link</em>. You can text or email that link to your phone or another coach—it opens the exact field and players on any browser.</li>
+      <li><strong>Backing Up / Transferring Everything:</strong> Use <em>💾 Backup</em> to download all your squads and saved scenarios into a small file. Use <em>📥 Restore</em> on another device to load them all.</li>
       <li><strong>Touchscreen Controls:</strong> Tap to place a player dot. Press and drag any dot with your finger to move them smoothly across the turf.</li>
       <li><strong>Sidebars on Mobile/Tablet:</strong> Tap <em>⚙️ Controls</em> or <em>👥 Squad</em> at the bottom of the screen to open the slide-out drawers.</li>
-      <li><strong>Squad Management:</strong> Use <em>📝 Edit List</em> in the squad drawer to paste your roster from WhatsApp/email.</li>
-      <li><strong>Movement & Shifts:</strong> Tap the field again with the same player selected to drop an alternate dot, then link with <em>➔ Draw Move Arrow</em>.</li>
-      <li><strong>Core Roles (WK & Bowler):</strong> Tap <strong>WK</strong> or <strong>B</strong> on any player to position them automatically.</li>
       <li><strong>Restrictions & Safety:</strong> The top-right badge audits fielders in the deep vs inner ring, and warns if any child is inside the 10m safety arc.</li>
     </ul>
     <div class="modal-actions" style="margin-top: 10px;">
@@ -585,7 +593,6 @@
   const PITCH_H = 150;
   const EXCLUSION_RADIUS_PX = 74;
 
-  // Responsive Drawer toggle for mobile/tablets
   function toggleDrawer(id, forceState) {
     const el = document.getElementById(id);
     const otherId = (id === 'sidebar') ? 'roster-sidebar' : 'sidebar';
@@ -1034,7 +1041,6 @@
         if (info.isSlipsGully) slipsCount++;
         if (info.isInside10m) safetyBreach = true;
 
-        // Enlarged dot slightly for touch display clarity
         ctx.beginPath();
         ctx.arc(el.x, el.y, 10, 0, Math.PI * 2);
         ctx.fillStyle = el.color;
@@ -1113,7 +1119,6 @@
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-    // Accounts for CSS scaling vs internal resolution
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
 
@@ -1127,7 +1132,6 @@
     const { x, y } = getCanvasCoordinates(e);
 
     if (currentMode === 'dot') {
-      // Touch-friendly hit test: 26px radius makes grabbing easy with fingertips
       const hitDot = elements.slice().reverse().find(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= 26);
       if (hitDot) {
         isDragging = true;
@@ -1144,7 +1148,7 @@
 
   function handlePointerMove(e) {
     if (!isDragging || !draggedDot) return;
-    if (e.cancelable) e.preventDefault(); // Stop iOS gesture scrolling
+    if (e.cancelable) e.preventDefault();
 
     const { x, y } = getCanvasCoordinates(e);
     dragMoved = true;
@@ -1166,7 +1170,6 @@
       return;
     }
 
-    // Process genuine tap / click
     const { x, y } = getCanvasCoordinates(e.changedTouches ? { touches: e.changedTouches } : e);
 
     if (currentMode === 'dot') {
@@ -1224,7 +1227,6 @@
     }
   }
 
-  // Mouse Listeners
   canvas.addEventListener('mousedown', handlePointerDown);
   canvas.addEventListener('mousemove', (e) => {
     if (isDragging) {
@@ -1237,7 +1239,6 @@
   });
   window.addEventListener('mouseup', handlePointerUp);
 
-  // Native Touch Listeners (iOS Safari, Android Chrome, Surface)
   canvas.addEventListener('touchstart', handlePointerDown, { passive: true });
   canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
   canvas.addEventListener('touchend', handlePointerUp, { passive: true });
@@ -1308,7 +1309,99 @@
     link.click();
   }
 
-  // --- SQUAD LIST BULK PASTE & MANAGEMENT ---
+  // --- SHAREABLE LINK ENCODER / DECODER ---
+  function copyShareableLink() {
+    const payload = {
+      title: document.getElementById('diagTitle').value,
+      batterHand: document.getElementById('batterHand').value,
+      strikerEnd: document.getElementById('strikerEnd').value,
+      roster: roster,
+      elements: elements
+    };
+
+    const json = JSON.stringify(payload);
+    // Base64 encode the JSON data
+    const encoded = btoa(encodeURIComponent(json));
+    const url = new URL(window.location.href);
+    url.hash = `data=${encoded}`;
+
+    navigator.clipboard.writeText(url.toString()).then(() => {
+      alert("Link copied to clipboard!\n\nYou can text or email this link to any phone, iPad, or computer, and it will load this exact field.");
+    }).catch(() => {
+      prompt("Copy this shareable link:", url.toString());
+    });
+  }
+
+  function loadFromURLHash() {
+    if (!window.location.hash || !window.location.hash.includes('data=')) return;
+    try {
+      const hashStr = window.location.hash.split('data=')[1];
+      const json = decodeURIComponent(atob(hashStr));
+      const data = JSON.parse(json);
+
+      if (data) {
+        document.getElementById('diagTitle').value = data.title || 'Shared Field Plan';
+        document.getElementById('batterHand').value = data.batterHand || 'RHB';
+        document.getElementById('strikerEnd').value = data.strikerEnd || 'top';
+        if (data.roster) roster = data.roster;
+        elements = data.elements || [];
+        renderRoster();
+        drawCanvas();
+      }
+    } catch (e) {
+      console.error("Could not parse shared link:", e);
+    }
+  }
+
+  // --- FULL BACKUP (EXPORT / IMPORT JSON) ---
+  function exportBackupData() {
+    const backup = {
+      scenarios: getSavedScenarios(),
+      squadLists: getSavedSquadLists(),
+      currentRoster: roster,
+      currentElements: elements
+    };
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cricket_tactics_backup_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importBackupData(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      try {
+        const data = JSON.parse(evt.target.result);
+        if (data.scenarios) {
+          localStorage.setItem('cricket_field_scenarios', JSON.stringify(data.scenarios));
+          refreshScenarioDropdown();
+        }
+        if (data.squadLists) {
+          localStorage.setItem('cricket_saved_squad_lists', JSON.stringify(data.squadLists));
+          refreshSquadListDropdown();
+        }
+        if (data.currentRoster) roster = data.currentRoster;
+        if (data.currentElements) elements = data.currentElements;
+
+        renderRoster();
+        drawCanvas();
+        alert("Backup restored successfully!");
+      } catch (err) {
+        alert("Invalid backup file.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
+  // --- SQUAD LIST MANAGEMENT ---
   function openSquadManagerModal() {
     const names = roster.map(p => p.name).join('\n');
     document.getElementById('bulkSquadInput').value = names;
@@ -1538,6 +1631,7 @@
   renderRoster();
   refreshScenarioDropdown();
   refreshSquadListDropdown();
+  loadFromURLHash();
   drawCanvas();
 </script>
 </body>
