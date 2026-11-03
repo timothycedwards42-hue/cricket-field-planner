@@ -61,7 +61,7 @@
       flex: 1;
       padding-right: 4px;
     }
-    h2 { font-size: 1rem; color: #a5d6a7; text-transform: uppercase; letter-spacing: 0.5px; }
+    h2 { font-size: 0.95rem; color: #a5d6a7; text-transform: uppercase; letter-spacing: 0.5px; }
     .control-group {
       display: flex;
       flex-direction: column;
@@ -463,11 +463,6 @@
   <div class="control-group" style="margin-top: auto; display: flex; flex-direction: column; gap: 6px;">
     <button class="share-btn" onclick="copyShareableLink()">🔗 Copy Shareable Link</button>
     <button class="action-btn" onclick="exportImage()">⬇ Export PNG Image</button>
-    <div style="display: flex; gap: 6px;">
-      <button class="small-btn" style="flex: 1;" onclick="exportBackupData()">💾 Backup</button>
-      <button class="small-btn" style="flex: 1;" onclick="document.getElementById('importBackupInput').click()">📥 Restore</button>
-      <input type="file" id="importBackupInput" style="display: none;" accept=".json" onchange="importBackupData(event)">
-    </div>
     <button class="feedback-link-btn" onclick="openHelpModal()">📖 How to Use & Guide</button>
     <button class="feedback-link-btn" onclick="openFeedbackModal()">💬 Send Feedback</button>
   </div>
@@ -525,8 +520,9 @@
   <div class="modal-card" style="max-width: 520px; max-height: 82vh; overflow-y: auto;">
     <h3 style="color: #a5d6a7; font-size: 1.05rem;">Field Tactics Builder Guide</h3>
     <ul style="font-size: 0.82rem; line-height: 1.55; padding-left: 18px; color: #ddd; display: flex; flex-direction: column; gap: 6px;">
-      <li><strong>Sharing Across Devices:</strong> Click <em>🔗 Copy Shareable Link</em>. You can text or email that link to your phone or another coach—it opens the exact field and players on any browser.</li>
-      <li><strong>Backing Up / Transferring Everything:</strong> Use <em>💾 Backup</em> to download all your squads and saved scenarios into a small file. Use <em>📥 Restore</em> on another device to load them all.</li>
+      <li><strong>Selecting Players:</strong> Tap a player in the Squad panel to make them active. Then tap on the field to place their dot.</li>
+      <li><strong>Movement & Shifts:</strong> Tap the field again with the same player active to place a second dot, then link them using <em>➔ Draw Move Arrow</em>.</li>
+      <li><strong>Core Roles (WK & Bowler):</strong> Tap <strong>WK</strong> or <strong>B</strong> on any player to position them automatically.</li>
       <li><strong>Touchscreen Controls:</strong> Tap to place a player dot. Press and drag any dot with your finger to move them smoothly across the turf.</li>
       <li><strong>Sidebars on Mobile/Tablet:</strong> Tap <em>⚙️ Controls</em> or <em>👥 Squad</em> at the bottom of the screen to open the slide-out drawers.</li>
       <li><strong>Restrictions & Safety:</strong> The top-right badge audits fielders in the deep vs inner ring, and warns if any child is inside the 10m safety arc.</li>
@@ -587,6 +583,7 @@
   let isDragging = false;
   let draggedDot = null;
   let dragMoved = false;
+  let pointerStartOnCanvas = false;
 
   const CX = 400;
   const CY = 475;
@@ -677,6 +674,17 @@
     drawCanvas();
   }
 
+  function selectPlayer(idx) {
+    activePlayerIndex = idx;
+    // Reset any pending canvas drag state so clicking sidebar never spawns dots
+    isDragging = false;
+    draggedDot = null;
+    dragMoved = false;
+    pointerStartOnCanvas = false;
+    renderRoster();
+    drawCanvas();
+  }
+
   function renderRoster() {
     const list = document.getElementById('roster-list');
     list.innerHTML = '';
@@ -688,9 +696,7 @@
       card.className = `roster-card ${idx === activePlayerIndex ? 'active-player' : ''}`;
       card.onclick = (e) => {
         if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
-          activePlayerIndex = idx;
-          renderRoster();
-          drawCanvas();
+          selectPlayer(idx);
         }
       };
 
@@ -1116,19 +1122,28 @@
   // --- UNIFIED POINTER & TOUCH ENGINE ---
   function getCanvasCoordinates(e) {
     const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const touch = e.touches ? e.touches[0] : (e.changedTouches ? e.changedTouches[0] : e);
+    const clientX = touch.clientX;
+    const clientY = touch.clientY;
 
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
 
     return {
       x: (clientX - rect.left) * scaleX,
-      y: (clientY - rect.top) * scaleY
+      y: (clientY - rect.top) * scaleY,
+      rawClientX: clientX,
+      rawClientY: clientY
     };
   }
 
   function handlePointerDown(e) {
+    // Only respond if the touch/click physically began on the canvas element
+    if (e.target !== canvas) return;
+
+    pointerStartOnCanvas = true;
+    dragMoved = false;
+
     const { x, y } = getCanvasCoordinates(e);
 
     if (currentMode === 'dot') {
@@ -1136,7 +1151,6 @@
       if (hitDot) {
         isDragging = true;
         draggedDot = hitDot;
-        dragMoved = false;
         const rIdx = roster.findIndex(p => p.id === hitDot.playerId);
         if (rIdx !== -1) {
           activePlayerIndex = rIdx;
@@ -1147,6 +1161,7 @@
   }
 
   function handlePointerMove(e) {
+    if (!pointerStartOnCanvas) return;
     if (!isDragging || !draggedDot) return;
     if (e.cancelable) e.preventDefault();
 
@@ -1158,6 +1173,16 @@
   }
 
   function handlePointerUp(e) {
+    // If the touch didn't start on the canvas (e.g. clicked on the sidebar), ignore completely
+    if (!pointerStartOnCanvas) {
+      isDragging = false;
+      draggedDot = null;
+      dragMoved = false;
+      return;
+    }
+
+    pointerStartOnCanvas = false;
+
     if (isDragging) {
       isDragging = false;
       draggedDot = null;
@@ -1170,7 +1195,20 @@
       return;
     }
 
-    const { x, y } = getCanvasCoordinates(e.changedTouches ? { touches: e.changedTouches } : e);
+    // Verify click is physically within the visible canvas boundary
+    const rect = canvas.getBoundingClientRect();
+    const coords = getCanvasCoordinates(e);
+
+    if (
+      coords.rawClientX < rect.left || 
+      coords.rawClientX > rect.right || 
+      coords.rawClientY < rect.top || 
+      coords.rawClientY > rect.bottom
+    ) {
+      return; // Canceled: outside canvas
+    }
+
+    const { x, y } = coords;
 
     if (currentMode === 'dot') {
       const hitDot = elements.find(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= 26);
@@ -1241,7 +1279,7 @@
 
   canvas.addEventListener('touchstart', handlePointerDown, { passive: true });
   canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
-  canvas.addEventListener('touchend', handlePointerUp, { passive: true });
+  window.addEventListener('touchend', handlePointerUp, { passive: true });
 
   function undo() {
     elements.pop();
@@ -1309,7 +1347,6 @@
     link.click();
   }
 
-  // --- SHAREABLE LINK ENCODER / DECODER ---
   function copyShareableLink() {
     const payload = {
       title: document.getElementById('diagTitle').value,
@@ -1320,7 +1357,6 @@
     };
 
     const json = JSON.stringify(payload);
-    // Base64 encode the JSON data
     const encoded = btoa(encodeURIComponent(json));
     const url = new URL(window.location.href);
     url.hash = `data=${encoded}`;
@@ -1353,55 +1389,7 @@
     }
   }
 
-  // --- FULL BACKUP (EXPORT / IMPORT JSON) ---
-  function exportBackupData() {
-    const backup = {
-      scenarios: getSavedScenarios(),
-      squadLists: getSavedSquadLists(),
-      currentRoster: roster,
-      currentElements: elements
-    };
-
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `cricket_tactics_backup_${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function importBackupData(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(evt) {
-      try {
-        const data = JSON.parse(evt.target.result);
-        if (data.scenarios) {
-          localStorage.setItem('cricket_field_scenarios', JSON.stringify(data.scenarios));
-          refreshScenarioDropdown();
-        }
-        if (data.squadLists) {
-          localStorage.setItem('cricket_saved_squad_lists', JSON.stringify(data.squadLists));
-          refreshSquadListDropdown();
-        }
-        if (data.currentRoster) roster = data.currentRoster;
-        if (data.currentElements) elements = data.currentElements;
-
-        renderRoster();
-        drawCanvas();
-        alert("Backup restored successfully!");
-      } catch (err) {
-        alert("Invalid backup file.");
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  }
-
-  // --- SQUAD LIST MANAGEMENT ---
+  // --- SQUAD LIST BULK PASTE & MANAGEMENT ---
   function openSquadManagerModal() {
     const names = roster.map(p => p.name).join('\n');
     document.getElementById('bulkSquadInput').value = names;
