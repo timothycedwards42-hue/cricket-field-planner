@@ -24,35 +24,36 @@
       padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
       box-shadow: 2px 0 10px rgba(0,0,0,0.3);
       overflow-y: auto;
     }
-    h2 { font-size: 1.1rem; color: #a5d6a7; text-transform: uppercase; letter-spacing: 0.5px; }
+    h2 { font-size: 1.05rem; color: #a5d6a7; text-transform: uppercase; letter-spacing: 0.5px; }
     .control-group {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
-    label { font-size: 0.85rem; opacity: 0.85; font-weight: 500; }
+    label { font-size: 0.82rem; opacity: 0.85; font-weight: 500; }
     select, input[type="text"] {
       background: #1e1e24;
       border: 1px solid #555;
-      padding: 8px;
+      padding: 7px 8px;
       border-radius: 4px;
       color: white;
+      font-size: 0.9rem;
     }
     .toggle-row {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       cursor: pointer;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       user-select: none;
     }
     .toggle-row input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
+      width: 15px;
+      height: 15px;
       accent-color: #2e7d32;
       cursor: pointer;
     }
@@ -60,10 +61,10 @@
       background: #3b3b4a;
       border: 2px solid transparent;
       color: white;
-      padding: 10px 12px;
+      padding: 8px 10px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       text-align: left;
       transition: all 0.2s;
     }
@@ -76,12 +77,12 @@
     .color-picker-row {
       display: grid;
       grid-template-columns: repeat(6, 1fr);
-      gap: 8px;
+      gap: 6px;
       align-items: center;
     }
     .swatch {
-      width: 28px;
-      height: 28px;
+      width: 26px;
+      height: 26px;
       border-radius: 50%;
       cursor: pointer;
       border: 2px solid transparent;
@@ -93,8 +94,8 @@
     }
     input[type="color"] {
       border: none;
-      width: 30px;
-      height: 30px;
+      width: 28px;
+      height: 28px;
       border-radius: 4px;
       cursor: pointer;
       background: none;
@@ -103,35 +104,52 @@
       background: #388e3c;
       color: white;
       border: none;
-      padding: 12px;
+      padding: 10px;
       border-radius: 6px;
       cursor: pointer;
       font-weight: bold;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
     }
     .action-btn:hover { background: #2e7d32; }
     .secondary-btn {
       background: #d32f2f;
       color: white;
       border: none;
-      padding: 8px;
+      padding: 7px;
       border-radius: 4px;
       cursor: pointer;
+      font-size: 0.85rem;
     }
     .secondary-btn:hover { background: #b71c1c; }
+    .scenario-row {
+      display: flex;
+      gap: 6px;
+    }
+    .scenario-row select {
+      flex: 1;
+    }
+    .small-btn {
+      background: #444;
+      border: 1px solid #666;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.78rem;
+    }
+    .small-btn:hover { background: #555; }
 
-    /* Feedback Modal Styles */
+    /* Feedback & Modals */
     .feedback-link-btn {
       background: transparent;
       border: 1px solid #555;
       color: #bbb;
-      padding: 8px;
+      padding: 7px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       text-align: center;
       transition: all 0.2s;
-      margin-top: 4px;
     }
     .feedback-link-btn:hover {
       background: #3b3b4a;
@@ -149,14 +167,14 @@
     }
     .feedback-card {
       background: var(--panel);
-      padding: 24px;
+      padding: 22px;
       border-radius: 8px;
       width: 90%;
       max-width: 400px;
       box-shadow: 0 8px 32px rgba(0,0,0,0.5);
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
     }
     .feedback-card textarea {
       background: #1e1e24;
@@ -172,7 +190,7 @@
       display: flex;
       justify-content: flex-end;
       gap: 8px;
-      margin-top: 8px;
+      margin-top: 6px;
     }
 
     #canvas-container {
@@ -210,10 +228,33 @@
   </div>
 
   <div class="control-group">
+    <label>Batting End (Striker Position)</label>
+    <select id="strikerEnd" onchange="drawCanvas()">
+      <option value="top">North End (Top)</option>
+      <option value="bottom">South End (Bottom)</option>
+    </select>
+  </div>
+
+  <div class="control-group">
     <label class="toggle-row">
       <input type="checkbox" id="togglePosLabels" checked onchange="drawCanvas()">
       <span>Show Position Labels</span>
     </label>
+    <label class="toggle-row">
+      <input type="checkbox" id="toggleExclusion" checked onchange="drawCanvas()">
+      <span>Show 10m Exclusion Arc</span>
+    </label>
+  </div>
+
+  <div class="control-group">
+    <label>Custom Scenarios</label>
+    <div class="scenario-row">
+      <select id="scenarioSelect" onchange="loadScenario()">
+        <option value="">-- Load Saved Scenario --</option>
+      </select>
+      <button class="small-btn" onclick="saveCurrentScenario()" title="Save current field">💾 Save</button>
+      <button class="small-btn" onclick="deleteCurrentScenario()" title="Delete selected scenario">🗑</button>
+    </div>
   </div>
 
   <div class="control-group">
@@ -225,7 +266,7 @@
   </div>
 
   <div class="control-group">
-    <label>Player Colors (12 Options + Custom)</label>
+    <label>Player Colors</label>
     <div class="color-picker-row">
       <div class="swatch selected" style="background: #ffffff;" title="White" onclick="setColor('#ffffff', this)"></div>
       <div class="swatch" style="background: #ffd600;" title="Yellow" onclick="setColor('#ffd600', this)"></div>
@@ -266,22 +307,21 @@
 <!-- Feedback Modal -->
 <div id="feedback-modal-overlay">
   <div class="feedback-card">
-    <h3 style="color: #a5d6a7; font-size: 1.05rem;">Feedback & Suggestions</h3>
-    <p style="font-size: 0.85rem; opacity: 0.8;">Spot a bug, missing field position, or have a feature idea?</p>
+    <h3 style="color: #a5d6a7; font-size: 1rem;">Feedback & Suggestions</h3>
+    <p style="font-size: 0.8rem; opacity: 0.8;">Spot a bug, missing field position, or have a feature idea?</p>
     
-    <!-- IMPORTANT: Replace YOUR_FORMSPREE_ID with your Formspree ID -->
     <form id="feedbackForm" action="https://formspree.io/f/xgaapdgw" method="POST">
-      <div class="control-group" style="margin-bottom: 8px;">
+      <div class="control-group" style="margin-bottom: 6px;">
         <label>Your Name / Role (optional)</label>
         <input type="text" name="name" placeholder="e.g. Coach Tim / U13s">
       </div>
-      <div class="control-group" style="margin-bottom: 8px;">
+      <div class="control-group" style="margin-bottom: 6px;">
         <label>Feedback</label>
         <textarea name="message" required placeholder="What would make this tool better?"></textarea>
       </div>
       <div class="modal-actions">
         <button type="button" class="tool-btn" onclick="closeFeedbackModal()">Cancel</button>
-        <button type="submit" class="action-btn" style="padding: 8px 16px;">Send</button>
+        <button type="submit" class="action-btn" style="padding: 6px 14px;">Send</button>
       </div>
     </form>
   </div>
@@ -303,8 +343,16 @@
   const CX = 400;
   const CY = 475;
   const PITCH_H = 150;
-  const BATTER_Y = CY - PITCH_H / 2 + 20;
-  const BATTER_X = CX;
+  const EXCLUSION_RADIUS_PX = 74; // ~10m in ground scale
+
+  function getStrikerCoords() {
+    const isBottom = document.getElementById('strikerEnd').value === 'bottom';
+    return {
+      x: CX,
+      y: isBottom ? (CY + PITCH_H / 2 - 20) : (CY - PITCH_H / 2 + 20),
+      isBottom: isBottom
+    };
+  }
 
   function setMode(mode) {
     currentMode = mode;
@@ -323,26 +371,71 @@
     if (el) el.classList.add('selected');
   }
 
-  function getPositionName(x, y) {
+  // Classified zone for rules & badge
+  function classifyFielder(x, y) {
+    const striker = getStrikerCoords();
     const isLHB = document.getElementById('batterHand').value === 'LHB';
-    const dx = isLHB ? -(x - BATTER_X) : (x - BATTER_X);
-    const dy = y - BATTER_Y; 
+    
+    let dx = x - striker.x;
+    let dy = y - striker.y;
+
+    if (striker.isBottom) {
+      dy = -dy;
+      dx = -dx;
+    }
+    if (isLHB) dx = -dx;
+
+    const distFromStriker = Math.hypot(dx, dy);
+
+    // Check keeper / slips
+    const isKeeper = (distFromStriker < 85 && dy < 0 && Math.abs(dx) < 24);
+    const isSlipsGully = (!isKeeper && dy < 15 && dx < -15 && dx > -120 && distFromStriker < 130);
+
+    // Oval distance from center for 30-yard circle (RX=180, RY=210)
+    const normDistCenter = Math.pow((x - CX) / 180, 2) + Math.pow((y - CY) / 210, 2);
+    const isDeep = normDistCenter > 1.0;
+
+    // Check junior 10m safety arc (in front of crease, excluding keeper/slips)
+    const inFrontOfCrease = dy > 0;
+    const isInside10m = inFrontOfCrease && (distFromStriker < EXCLUSION_RADIUS_PX);
+
+    return {
+      isKeeper,
+      isSlipsGully,
+      isDeep,
+      isRing: !isDeep && !isKeeper && !isSlipsGully,
+      isInside10m: isInside10m && !isKeeper && !isSlipsGully
+    };
+  }
+
+  function getPositionName(x, y) {
+    const striker = getStrikerCoords();
+    const isLHB = document.getElementById('batterHand').value === 'LHB';
+    
+    let dx = x - striker.x;
+    let dy = y - striker.y;
+
+    if (striker.isBottom) {
+      dy = -dy;
+      dx = -dx;
+    }
+    if (isLHB) dx = -dx;
 
     const dist = Math.hypot(dx, dy);
 
-    if (dist < 85 && dy < 0 && Math.abs(dx) < 22) return "Wicketkeeper";
+    if (dist < 85 && dy < 0 && Math.abs(dx) < 24) return "Wicketkeeper";
 
-    if (dy < 10 && dx < -15 && dx > -110 && dist < 125) {
-      if (dx > -40) return "1st Slip";
-      if (dx > -70) return "2nd Slip";
+    if (dy < 15 && dx < -15 && dx > -120 && dist < 130) {
+      if (dx > -42) return "1st Slip";
+      if (dx > -75) return "2nd Slip";
       return "Gully";
     }
 
     let theta = Math.atan2(dx, dy) * (180 / Math.PI);
-
     const isClose = dist < 90;
-    const isDeep = dist > 210;
+    const isDeep = Math.pow((x - CX) / 180, 2) + Math.pow((y - CY) / 210, 2) > 1.0;
 
+    // Off-side (Negative theta)
     if (theta < -145) return isDeep ? "Deep Third" : "Fly Slip";
     if (theta >= -145 && theta < -105) return isDeep ? "Deep Bwd Point" : (isClose ? "Backward Point" : "Bwd Point");
     if (theta >= -105 && theta < -70)  return isDeep ? "Deep Point" : "Point";
@@ -350,6 +443,7 @@
     if (theta >= -40 && theta < -15)   return isDeep ? "Deep Extra Cover" : "Extra Cover";
     if (theta >= -15 && theta < 0)     return isDeep ? "Long-Off" : (isClose ? "Silly Mid-Off" : "Mid-Off");
 
+    // Leg-side (Positive theta)
     if (theta >= 0 && theta < 15)      return isDeep ? "Long-On" : (isClose ? "Silly Mid-On" : "Mid-On");
     if (theta >= 15 && theta < 50)     return isDeep ? "Deep Mid-Wkt" : (isClose ? "Short Mid-Wkt" : "Mid-Wicket");
     if (theta >= 50 && theta < 80)     return isDeep ? "Cow Corner" : "Mid-Wicket";
@@ -361,15 +455,18 @@
   function drawFieldBase() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Canvas Background
     ctx.fillStyle = "#f4ebd9";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    // Title
     const title = document.getElementById('diagTitle').value;
     ctx.fillStyle = "#111";
-    ctx.font = "bold 22px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.font = "bold 20px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(title.toUpperCase(), canvas.width / 2, 40);
+    ctx.fillText(title.toUpperCase(), canvas.width / 2, 38);
 
+    // Outfield boundary
     ctx.beginPath();
     ctx.ellipse(CX, CY, 340, 400, 0, 0, Math.PI * 2);
     ctx.fillStyle = "#52945b";
@@ -378,6 +475,7 @@
     ctx.strokeStyle = "#e8f5e9";
     ctx.stroke();
 
+    // 30-Yard Circle
     ctx.beginPath();
     ctx.ellipse(CX, CY, 180, 210, 0, 0, Math.PI * 2);
     ctx.lineWidth = 2;
@@ -386,6 +484,7 @@
     ctx.stroke();
     ctx.setLineDash([]);
 
+    // Pitch
     const pitchW = 48;
     ctx.fillStyle = "#d7c19a";
     ctx.fillRect(CX - pitchW / 2, CY - PITCH_H / 2, pitchW, PITCH_H);
@@ -393,25 +492,69 @@
     ctx.lineWidth = 1.5;
     ctx.strokeRect(CX - pitchW / 2, CY - PITCH_H / 2, pitchW, PITCH_H);
 
+    // Crease lines
+    const topCreaseY = CY - PITCH_H / 2 + 20;
+    const botCreaseY = CY + PITCH_H / 2 - 20;
     ctx.strokeStyle = "white";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(CX - pitchW/2, BATTER_Y);
-    ctx.lineTo(CX + pitchW/2, BATTER_Y);
-    ctx.moveTo(CX - pitchW/2, CY + PITCH_H/2 - 20);
-    ctx.lineTo(CX + pitchW/2, CY + PITCH_H/2 - 20);
+    ctx.moveTo(CX - pitchW/2, topCreaseY);
+    ctx.lineTo(CX + pitchW/2, topCreaseY);
+    ctx.moveTo(CX - pitchW/2, botCreaseY);
+    ctx.lineTo(CX + pitchW/2, botCreaseY);
     ctx.stroke();
 
+    // Striker Marker & Direction
+    const striker = getStrikerCoords();
     const isLHB = document.getElementById('batterHand').value === 'LHB';
     ctx.fillStyle = "#ff1744";
     ctx.font = "bold 11px sans-serif";
-    ctx.fillText(`BATTER (${isLHB ? 'LHB' : 'RHB'})`, CX, BATTER_Y - 26);
-    ctx.beginPath();
-    ctx.moveTo(CX, BATTER_Y - 6);
-    ctx.lineTo(CX - 5, BATTER_Y - 18);
-    ctx.lineTo(CX + 5, BATTER_Y - 18);
-    ctx.closePath();
-    ctx.fill();
+
+    if (!striker.isBottom) {
+      // Striker at North End
+      ctx.fillText(`BATTER (${isLHB ? 'LHB' : 'RHB'})`, CX, striker.y - 24);
+      ctx.beginPath();
+      ctx.moveTo(CX, striker.y - 4);
+      ctx.lineTo(CX - 5, striker.y - 16);
+      ctx.lineTo(CX + 5, striker.y - 16);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      // Striker at South End
+      ctx.fillText(`BATTER (${isLHB ? 'LHB' : 'RHB'})`, CX, striker.y + 28);
+      ctx.beginPath();
+      ctx.moveTo(CX, striker.y + 4);
+      ctx.lineTo(CX - 5, striker.y + 16);
+      ctx.lineTo(CX + 5, striker.y + 16);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 10m Junior Safety Exclusion Arc (in front of batter)
+    const showExclusion = document.getElementById('toggleExclusion').checked;
+    if (showExclusion) {
+      ctx.save();
+      ctx.beginPath();
+      if (!striker.isBottom) {
+        // Facing down pitch (towards South)
+        ctx.arc(striker.x, striker.y, EXCLUSION_RADIUS_PX, 0, Math.PI);
+      } else {
+        // Facing up pitch (towards North)
+        ctx.arc(striker.x, striker.y, EXCLUSION_RADIUS_PX, Math.PI, 0);
+      }
+      ctx.strokeStyle = "rgba(255, 238, 88, 0.65)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.stroke();
+      
+      // Arc Label
+      ctx.fillStyle = "rgba(255, 238, 88, 0.85)";
+      ctx.font = "9px sans-serif";
+      ctx.textAlign = "center";
+      const arcLabelY = !striker.isBottom ? striker.y + EXCLUSION_RADIUS_PX + 12 : striker.y - EXCLUSION_RADIUS_PX - 5;
+      ctx.fillText("10m Safety Zone", CX, arcLabelY);
+      ctx.restore();
+    }
   }
 
   function drawArrow(x1, y1, x2, y2, color) {
@@ -439,21 +582,81 @@
     ctx.restore();
   }
 
+  // Draw the Live Fielder Restriction Badge
+  function drawPillBadge(deepCount, ringCount, slipsCount, safetyBreach, totalFielders) {
+    const combined = deepCount + slipsCount;
+    ctx.save();
+
+    const badgeW = 210;
+    const badgeH = safetyBreach ? 90 : 72;
+    const badgeX = canvas.width - badgeW - 20;
+    const badgeY = 16;
+
+    // Background Container
+    ctx.fillStyle = "rgba(22, 28, 24, 0.88)";
+    ctx.strokeStyle = safetyBreach ? "#ff5252" : "#81c784";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    // Header Line
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 11px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText(`FIELDERS: ${totalFielders} on field`, badgeX + 12, badgeY + 18);
+
+    // Sub-counts
+    ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillStyle = "#cfd8dc";
+    ctx.fillText(`Deep: ${deepCount}  |  Ring: ${ringCount}  |  Slips: ${slipsCount}`, badgeX + 12, badgeY + 36);
+
+    // Rule Metric (Deep + Slips/Gully)
+    ctx.font = "bold 11px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillStyle = "#a5d6a7";
+    ctx.fillText(`Deep + Slips/Gully: ${combined}`, badgeX + 12, badgeY + 54);
+
+    // Safety Alert if child is too close to bat
+    if (safetyBreach) {
+      ctx.fillStyle = "#ff5252";
+      ctx.font = "bold 10px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.fillText(`⚠ Safety: Fielder inside 10m arc!`, badgeX + 12, badgeY + 74);
+    }
+
+    ctx.restore();
+  }
+
   function drawCanvas() {
     drawFieldBase();
 
     const showPosLabels = document.getElementById('togglePosLabels').checked;
 
+    let deepCount = 0;
+    let ringCount = 0;
+    let slipsCount = 0;
+    let safetyBreach = false;
+    let dotCount = 0;
+
     elements.forEach(el => {
       if (el.type === 'dot') {
+        dotCount++;
+        const info = classifyFielder(el.x, el.y);
+        if (info.isDeep) deepCount++;
+        if (info.isRing) ringCount++;
+        if (info.isSlipsGully) slipsCount++;
+        if (info.isInside10m) safetyBreach = true;
+
+        // Player Dot
         ctx.beginPath();
         ctx.arc(el.x, el.y, 8, 0, Math.PI * 2);
         ctx.fillStyle = el.color;
         ctx.fill();
         ctx.lineWidth = 2;
-        ctx.strokeStyle = '#111111';
+        ctx.strokeStyle = info.isInside10m ? '#ff1744' : '#111111';
         ctx.stroke();
 
+        // Dragging Highlight Ring
         if (isDragging && draggedDot === el) {
           ctx.beginPath();
           ctx.arc(el.x, el.y, 12, 0, Math.PI * 2);
@@ -462,6 +665,7 @@
           ctx.stroke();
         }
 
+        // Auto Position Tag
         if (showPosLabels) {
           const posName = getPositionName(el.x, el.y);
           ctx.save();
@@ -475,7 +679,7 @@
           const boxH = 13;
           const tagY = el.y + 16;
 
-          ctx.fillStyle = "rgba(18, 24, 20, 0.85)";
+          ctx.fillStyle = info.isInside10m ? "rgba(180, 20, 20, 0.9)" : "rgba(18, 24, 20, 0.85)";
           ctx.beginPath();
           ctx.roundRect(el.x - boxW / 2, tagY - boxH / 2, boxW, boxH, 3);
           ctx.fill();
@@ -496,6 +700,9 @@
         ctx.restore();
       }
     });
+
+    // Draw Live Restriction & Count Badge
+    drawPillBadge(deepCount, ringCount, slipsCount, safetyBreach, dotCount);
 
     if (arrowStart && currentMode === 'arrow') {
       ctx.beginPath();
@@ -622,6 +829,77 @@
     link.click();
   }
 
+  // --- LOCALSTORAGE CUSTOM SCENARIO MANAGEMENT ---
+  function getSavedScenarios() {
+    try {
+      return JSON.parse(localStorage.getItem('cricket_field_scenarios') || '{}');
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function refreshScenarioDropdown() {
+    const scenarios = getSavedScenarios();
+    const sel = document.getElementById('scenarioSelect');
+    sel.innerHTML = '<option value="">-- Load Saved Scenario --</option>';
+    Object.keys(scenarios).forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      sel.appendChild(opt);
+    });
+  }
+
+  function saveCurrentScenario() {
+    const currentTitle = document.getElementById('diagTitle').value.trim();
+    const name = prompt("Enter a scenario name to save (e.g. 'Powerplay RHB', 'Spin Attack'):", currentTitle);
+    if (!name) return;
+
+    const scenarios = getSavedScenarios();
+    scenarios[name] = {
+      title: document.getElementById('diagTitle').value,
+      batterHand: document.getElementById('batterHand').value,
+      strikerEnd: document.getElementById('strikerEnd').value,
+      elements: elements
+    };
+
+    localStorage.setItem('cricket_field_scenarios', JSON.stringify(scenarios));
+    refreshScenarioDropdown();
+    document.getElementById('scenarioSelect').value = name;
+    alert(`Scenario "${name}" saved!`);
+  }
+
+  function loadScenario() {
+    const name = document.getElementById('scenarioSelect').value;
+    if (!name) return;
+
+    const scenarios = getSavedScenarios();
+    const data = scenarios[name];
+    if (data) {
+      document.getElementById('diagTitle').value = data.title || name;
+      document.getElementById('batterHand').value = data.batterHand || 'RHB';
+      document.getElementById('strikerEnd').value = data.strikerEnd || 'top';
+      elements = JSON.parse(JSON.stringify(data.elements || []));
+      arrowStart = null;
+      drawCanvas();
+    }
+  }
+
+  function deleteCurrentScenario() {
+    const name = document.getElementById('scenarioSelect').value;
+    if (!name) {
+      alert("Please select a scenario to delete.");
+      return;
+    }
+    if (confirm(`Delete saved scenario "${name}"?`)) {
+      const scenarios = getSavedScenarios();
+      delete scenarios[name];
+      localStorage.setItem('cricket_field_scenarios', JSON.stringify(scenarios));
+      refreshScenarioDropdown();
+      alert(`Deleted "${name}".`);
+    }
+  }
+
   // --- FEEDBACK MODAL SCRIPT ---
   function openFeedbackModal() {
     document.getElementById('feedback-modal-overlay').style.display = 'flex';
@@ -661,6 +939,7 @@
     });
   }
 
+  refreshScenarioDropdown();
   drawCanvas();
 </script>
 </body>
