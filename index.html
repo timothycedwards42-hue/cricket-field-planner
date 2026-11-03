@@ -19,36 +19,50 @@
       overflow: hidden;
     }
     #sidebar {
-      width: 320px;
+      width: 300px;
+      min-width: 300px;
       background: var(--panel);
-      padding: 20px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
       box-shadow: 2px 0 10px rgba(0,0,0,0.3);
       overflow-y: auto;
+      z-index: 10;
     }
-    h2 { font-size: 1.05rem; color: #a5d6a7; text-transform: uppercase; letter-spacing: 0.5px; }
+    #roster-sidebar {
+      width: 270px;
+      min-width: 270px;
+      background: var(--panel);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: -2px 0 10px rgba(0,0,0,0.3);
+      overflow-y: auto;
+      z-index: 10;
+    }
+    h2 { font-size: 1rem; color: #a5d6a7; text-transform: uppercase; letter-spacing: 0.5px; }
     .control-group {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 5px;
     }
-    label { font-size: 0.82rem; opacity: 0.85; font-weight: 500; }
+    label { font-size: 0.8rem; opacity: 0.85; font-weight: 500; }
     select, input[type="text"] {
       background: #1e1e24;
       border: 1px solid #555;
-      padding: 7px 8px;
+      padding: 6px 8px;
       border-radius: 4px;
       color: white;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
     }
     .toggle-row {
       display: flex;
       align-items: center;
       gap: 8px;
       cursor: pointer;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       user-select: none;
     }
     .toggle-row input[type="checkbox"] {
@@ -64,7 +78,7 @@
       padding: 8px 10px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       text-align: left;
       transition: all 0.2s;
     }
@@ -74,32 +88,6 @@
       background: #2e5339;
       font-weight: bold;
     }
-    .color-picker-row {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 6px;
-      align-items: center;
-    }
-    .swatch {
-      width: 26px;
-      height: 26px;
-      border-radius: 50%;
-      cursor: pointer;
-      border: 2px solid transparent;
-      transition: transform 0.1s;
-    }
-    .swatch.selected {
-      border-color: white;
-      transform: scale(1.15);
-    }
-    input[type="color"] {
-      border: none;
-      width: 28px;
-      height: 28px;
-      border-radius: 4px;
-      cursor: pointer;
-      background: none;
-    }
     .action-btn {
       background: #388e3c;
       color: white;
@@ -108,17 +96,17 @@
       border-radius: 6px;
       cursor: pointer;
       font-weight: bold;
-      font-size: 0.9rem;
+      font-size: 0.88rem;
     }
     .action-btn:hover { background: #2e7d32; }
     .secondary-btn {
       background: #d32f2f;
       color: white;
       border: none;
-      padding: 7px;
+      padding: 6px;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
     }
     .secondary-btn:hover { background: #b71c1c; }
     .scenario-row {
@@ -139,15 +127,72 @@
     }
     .small-btn:hover { background: #555; }
 
+    /* Roster Styling */
+    .roster-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #202029;
+      padding: 5px 8px;
+      border-radius: 6px;
+      border: 1px solid #3c3c4d;
+      transition: border-color 0.15s;
+    }
+    .roster-card.active-player {
+      border-color: #81c784;
+      background: #29302b;
+    }
+    .roster-num {
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: #9e9ea7;
+      width: 16px;
+    }
+    .roster-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: white;
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 2px 4px;
+    }
+    .roster-input:focus {
+      outline: none;
+      border-bottom: 1px solid #81c784;
+    }
+    .roster-color-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid #ffffff44;
+      flex-shrink: 0;
+    }
+    .roster-color-input {
+      opacity: 0;
+      position: absolute;
+      pointer-events: none;
+      width: 0;
+      height: 0;
+    }
+    .on-field-badge {
+      font-size: 0.68rem;
+      padding: 2px 4px;
+      border-radius: 3px;
+      background: #2e7d32;
+      color: white;
+    }
+
     /* Feedback & Modals */
     .feedback-link-btn {
       background: transparent;
       border: 1px solid #555;
       color: #bbb;
-      padding: 7px;
+      padding: 6px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       text-align: center;
       transition: all 0.2s;
     }
@@ -198,7 +243,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 20px;
+      padding: 14px;
       position: relative;
     }
     canvas {
@@ -211,8 +256,9 @@
 </head>
 <body>
 
+<!-- Left Control Sidebar -->
 <div id="sidebar">
-  <h2>Field Tactics Builder</h2>
+  <h2>Tactics Builder</h2>
 
   <div class="control-group">
     <label>Diagram Title</label>
@@ -228,7 +274,7 @@
   </div>
 
   <div class="control-group">
-    <label>Batting End (Striker Position)</label>
+    <label>Batting End</label>
     <select id="strikerEnd" onchange="drawCanvas()">
       <option value="top">North End (Top)</option>
       <option value="bottom">South End (Bottom)</option>
@@ -238,11 +284,11 @@
   <div class="control-group">
     <label class="toggle-row">
       <input type="checkbox" id="togglePosLabels" checked onchange="drawCanvas()">
-      <span>Show Position Labels</span>
+      <span>Show Position Text</span>
     </label>
     <label class="toggle-row">
       <input type="checkbox" id="toggleExclusion" checked onchange="drawCanvas()">
-      <span>Show 10m Exclusion Arc</span>
+      <span>Show 10m Safety Arc</span>
     </label>
   </div>
 
@@ -253,55 +299,48 @@
         <option value="">-- Load Saved Scenario --</option>
       </select>
       <button class="small-btn" onclick="saveCurrentScenario()" title="Save current field">💾 Save</button>
-      <button class="small-btn" onclick="deleteCurrentScenario()" title="Delete selected scenario">🗑</button>
+      <button class="small-btn" onclick="deleteCurrentScenario()" title="Delete scenario">🗑</button>
     </div>
   </div>
 
   <div class="control-group">
     <label>Tool Mode</label>
-    <button class="tool-btn active" id="btn-dot" onclick="setMode('dot')">● Add / Drag Player Dot</button>
+    <button class="tool-btn active" id="btn-dot" onclick="setMode('dot')">● Add / Move Player</button>
     <button class="tool-btn" id="btn-arrow" onclick="setMode('arrow')">➔ Draw Move Arrow</button>
-    <button class="tool-btn" id="btn-label" onclick="setMode('label')">T Add Custom Label</button>
+    <button class="tool-btn" id="btn-label" onclick="setMode('label')">T Add Tactical Text</button>
     <button class="tool-btn" id="btn-delete" onclick="setMode('delete')">✖ Remove Item</button>
   </div>
 
-  <div class="control-group">
-    <label>Player Colors</label>
-    <div class="color-picker-row">
-      <div class="swatch selected" style="background: #ffffff;" title="White" onclick="setColor('#ffffff', this)"></div>
-      <div class="swatch" style="background: #ffd600;" title="Yellow" onclick="setColor('#ffd600', this)"></div>
-      <div class="swatch" style="background: #ff6d00;" title="Orange" onclick="setColor('#ff6d00', this)"></div>
-      <div class="swatch" style="background: #ff1744;" title="Red" onclick="setColor('#ff1744', this)"></div>
-      <div class="swatch" style="background: #f06292;" title="Pink" onclick="setColor('#f06292', this)"></div>
-      <div class="swatch" style="background: #ab47bc;" title="Purple" onclick="setColor('#ab47bc', this)"></div>
-      <div class="swatch" style="background: #00e676;" title="Lime" onclick="setColor('#00e676', this)"></div>
-      <div class="swatch" style="background: #00b0ff;" title="Sky Blue" onclick="setColor('#00b0ff', this)"></div>
-      <div class="swatch" style="background: #1565c0;" title="Navy Blue" onclick="setColor('#1565c0', this)"></div>
-      <div class="swatch" style="background: #00e5ff;" title="Cyan" onclick="setColor('#00e5ff', this)"></div>
-      <div class="swatch" style="background: #a1887f;" title="Tan / Brown" onclick="setColor('#a1887f', this)"></div>
-      <div class="swatch" style="background: #111111;" title="Black" onclick="setColor('#111111', this)"></div>
-      <input type="color" id="customColor" value="#ffffff" title="Custom Color Picker" onchange="setColor(this.value)">
-    </div>
-  </div>
-
   <div class="control-group" id="label-text-group" style="display:none;">
-    <label>Text Label Content</label>
-    <input type="text" id="labelText" placeholder="e.g. SLIP, SWEEPER">
+    <label>Tactical Note Text</label>
+    <input type="text" id="labelText" placeholder="e.g. SLIP CATCHING">
   </div>
 
   <div class="control-group">
-    <button class="tool-btn" onclick="undo()">↶ Undo Last Step</button>
-    <button class="secondary-btn" onclick="clearField()">Clear All Custom Marks</button>
+    <button class="tool-btn" onclick="undo()">↶ Undo Step</button>
+    <button class="secondary-btn" onclick="clearField()">Clear Field Marks</button>
   </div>
 
   <div class="control-group" style="margin-top: auto;">
     <button class="action-btn" onclick="exportImage()">⬇ Export PNG Image</button>
-    <button class="feedback-link-btn" onclick="openFeedbackModal()">💬 Send Feedback / Suggestions</button>
+    <button class="feedback-link-btn" onclick="openFeedbackModal()">💬 Send Feedback</button>
   </div>
 </div>
 
+<!-- Center Field Canvas -->
 <div id="canvas-container">
   <canvas id="groundCanvas" width="800" height="920"></canvas>
+</div>
+
+<!-- Right Roster & Team Sheet Sidebar -->
+<div id="roster-sidebar">
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h2>Team Roster (11)</h2>
+    <span style="font-size: 0.72rem; opacity: 0.65;">Click dot to recolor</span>
+  </div>
+  <div id="roster-list" style="display: flex; flex-direction: column; gap: 6px; overflow-y: auto;">
+    <!-- Rendered dynamically by JS -->
+  </div>
 </div>
 
 <!-- Feedback Modal -->
@@ -332,9 +371,23 @@
   const ctx = canvas.getContext('2d');
 
   let currentMode = 'dot';
-  let currentColor = '#ffffff';
   let arrowStart = null;
   let elements = [];
+
+  // Team Roster (11 Players with distinct default colours)
+  const DEFAULT_COLORS = [
+    '#ffffff', '#ffd600', '#ff6d00', '#ff1744', 
+    '#f06292', '#ab47bc', '#00e676', '#00b0ff', 
+    '#1565c0', '#00e5ff', '#a1887f'
+  ];
+
+  let roster = Array.from({ length: 11 }, (_, i) => ({
+    id: i + 1,
+    name: `Player ${i + 1}`,
+    color: DEFAULT_COLORS[i]
+  }));
+
+  let activePlayerIndex = 0;
 
   let isDragging = false;
   let draggedDot = null;
@@ -343,7 +396,85 @@
   const CX = 400;
   const CY = 475;
   const PITCH_H = 150;
-  const EXCLUSION_RADIUS_PX = 74; // ~10m in ground scale
+  const EXCLUSION_RADIUS_PX = 74;
+
+  function renderRoster() {
+    const list = document.getElementById('roster-list');
+    list.innerHTML = '';
+
+    roster.forEach((p, idx) => {
+      const isOnField = elements.some(el => el.type === 'dot' && el.playerId === p.id);
+
+      const card = document.createElement('div');
+      card.className = `roster-card ${idx === activePlayerIndex ? 'active-player' : ''}`;
+      card.onclick = (e) => {
+        if (e.target.tagName !== 'INPUT') {
+          activePlayerIndex = idx;
+          renderRoster();
+          drawCanvas();
+        }
+      };
+
+      const num = document.createElement('span');
+      num.className = 'roster-num';
+      num.textContent = `${p.id}.`;
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'roster-input';
+      input.value = p.name;
+      input.oninput = (e) => {
+        p.name = e.target.value.trim() || `Player ${p.id}`;
+        // Update existing dot labels
+        elements.forEach(el => {
+          if (el.type === 'dot' && el.playerId === p.id) {
+            el.playerName = p.name;
+          }
+        });
+        drawCanvas();
+      };
+
+      // Hidden native color picker triggered by clicking swatch
+      const colorInput = document.createElement('input');
+      colorInput.type = 'color';
+      colorInput.className = 'roster-color-input';
+      colorInput.value = p.color;
+      colorInput.onchange = (e) => {
+        p.color = e.target.value;
+        // Update dot color
+        elements.forEach(el => {
+          if (el.type === 'dot' && el.playerId === p.id) {
+            el.color = p.color;
+          }
+        });
+        renderRoster();
+        drawCanvas();
+      };
+
+      const swatch = document.createElement('div');
+      swatch.className = 'roster-color-dot';
+      swatch.style.background = p.color;
+      swatch.title = "Change player color";
+      swatch.onclick = (e) => {
+        e.stopPropagation();
+        colorInput.click();
+      };
+
+      card.appendChild(num);
+      card.appendChild(swatch);
+      card.appendChild(input);
+      card.appendChild(colorInput);
+
+      if (isOnField) {
+        const badge = document.createElement('span');
+        badge.className = 'on-field-badge';
+        badge.textContent = 'ON';
+        card.appendChild(badge);
+      }
+
+      list.appendChild(card);
+    });
+  }
 
   function getStrikerCoords() {
     const isBottom = document.getElementById('strikerEnd').value === 'bottom';
@@ -365,13 +496,6 @@
     drawCanvas();
   }
 
-  function setColor(hex, el) {
-    currentColor = hex;
-    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
-    if (el) el.classList.add('selected');
-  }
-
-  // Classified zone for rules & badge
   function classifyFielder(x, y) {
     const striker = getStrikerCoords();
     const isLHB = document.getElementById('batterHand').value === 'LHB';
@@ -387,15 +511,12 @@
 
     const distFromStriker = Math.hypot(dx, dy);
 
-    // Check keeper / slips
     const isKeeper = (distFromStriker < 85 && dy < 0 && Math.abs(dx) < 24);
     const isSlipsGully = (!isKeeper && dy < 15 && dx < -15 && dx > -120 && distFromStriker < 130);
 
-    // Oval distance from center for 30-yard circle (RX=180, RY=210)
     const normDistCenter = Math.pow((x - CX) / 180, 2) + Math.pow((y - CY) / 210, 2);
     const isDeep = normDistCenter > 1.0;
 
-    // Check junior 10m safety arc (in front of crease, excluding keeper/slips)
     const inFrontOfCrease = dy > 0;
     const isInside10m = inFrontOfCrease && (distFromStriker < EXCLUSION_RADIUS_PX);
 
@@ -435,7 +556,7 @@
     const isClose = dist < 90;
     const isDeep = Math.pow((x - CX) / 180, 2) + Math.pow((y - CY) / 210, 2) > 1.0;
 
-    // Off-side (Negative theta)
+    // Off-side
     if (theta < -145) return isDeep ? "Deep Third" : "Fly Slip";
     if (theta >= -145 && theta < -105) return isDeep ? "Deep Bwd Point" : (isClose ? "Backward Point" : "Bwd Point");
     if (theta >= -105 && theta < -70)  return isDeep ? "Deep Point" : "Point";
@@ -443,7 +564,7 @@
     if (theta >= -40 && theta < -15)   return isDeep ? "Deep Extra Cover" : "Extra Cover";
     if (theta >= -15 && theta < 0)     return isDeep ? "Long-Off" : (isClose ? "Silly Mid-Off" : "Mid-Off");
 
-    // Leg-side (Positive theta)
+    // Leg-side
     if (theta >= 0 && theta < 15)      return isDeep ? "Long-On" : (isClose ? "Silly Mid-On" : "Mid-On");
     if (theta >= 15 && theta < 50)     return isDeep ? "Deep Mid-Wkt" : (isClose ? "Short Mid-Wkt" : "Mid-Wicket");
     if (theta >= 50 && theta < 80)     return isDeep ? "Cow Corner" : "Mid-Wicket";
@@ -455,11 +576,9 @@
   function drawFieldBase() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Canvas Background
     ctx.fillStyle = "#f4ebd9";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Title
     const title = document.getElementById('diagTitle').value;
     ctx.fillStyle = "#111";
     ctx.font = "bold 20px -apple-system, BlinkMacSystemFont, sans-serif";
@@ -511,7 +630,6 @@
     ctx.font = "bold 11px sans-serif";
 
     if (!striker.isBottom) {
-      // Striker at North End
       ctx.fillText(`BATTER (${isLHB ? 'LHB' : 'RHB'})`, CX, striker.y - 24);
       ctx.beginPath();
       ctx.moveTo(CX, striker.y - 4);
@@ -520,7 +638,6 @@
       ctx.closePath();
       ctx.fill();
     } else {
-      // Striker at South End
       ctx.fillText(`BATTER (${isLHB ? 'LHB' : 'RHB'})`, CX, striker.y + 28);
       ctx.beginPath();
       ctx.moveTo(CX, striker.y + 4);
@@ -530,16 +647,14 @@
       ctx.fill();
     }
 
-    // 10m Junior Safety Exclusion Arc (in front of batter)
+    // 10m Junior Safety Exclusion Arc
     const showExclusion = document.getElementById('toggleExclusion').checked;
     if (showExclusion) {
       ctx.save();
       ctx.beginPath();
       if (!striker.isBottom) {
-        // Facing down pitch (towards South)
         ctx.arc(striker.x, striker.y, EXCLUSION_RADIUS_PX, 0, Math.PI);
       } else {
-        // Facing up pitch (towards North)
         ctx.arc(striker.x, striker.y, EXCLUSION_RADIUS_PX, Math.PI, 0);
       }
       ctx.strokeStyle = "rgba(255, 238, 88, 0.65)";
@@ -547,7 +662,6 @@
       ctx.setLineDash([5, 5]);
       ctx.stroke();
       
-      // Arc Label
       ctx.fillStyle = "rgba(255, 238, 88, 0.85)";
       ctx.font = "9px sans-serif";
       ctx.textAlign = "center";
@@ -582,7 +696,6 @@
     ctx.restore();
   }
 
-  // Draw the Live Fielder Restriction Badge
   function drawPillBadge(deepCount, ringCount, slipsCount, safetyBreach, totalFielders) {
     const combined = deepCount + slipsCount;
     ctx.save();
@@ -592,7 +705,6 @@
     const badgeX = canvas.width - badgeW - 20;
     const badgeY = 16;
 
-    // Background Container
     ctx.fillStyle = "rgba(22, 28, 24, 0.88)";
     ctx.strokeStyle = safetyBreach ? "#ff5252" : "#81c784";
     ctx.lineWidth = 1.5;
@@ -601,23 +713,19 @@
     ctx.fill();
     ctx.stroke();
 
-    // Header Line
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 11px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.textAlign = "left";
     ctx.fillText(`FIELDERS: ${totalFielders} on field`, badgeX + 12, badgeY + 18);
 
-    // Sub-counts
     ctx.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.fillStyle = "#cfd8dc";
     ctx.fillText(`Deep: ${deepCount}  |  Ring: ${ringCount}  |  Slips: ${slipsCount}`, badgeX + 12, badgeY + 36);
 
-    // Rule Metric (Deep + Slips/Gully)
     ctx.font = "bold 11px -apple-system, BlinkMacSystemFont, sans-serif";
     ctx.fillStyle = "#a5d6a7";
     ctx.fillText(`Deep + Slips/Gully: ${combined}`, badgeX + 12, badgeY + 54);
 
-    // Safety Alert if child is too close to bat
     if (safetyBreach) {
       ctx.fillStyle = "#ff5252";
       ctx.font = "bold 10px -apple-system, BlinkMacSystemFont, sans-serif";
@@ -649,43 +757,46 @@
 
         // Player Dot
         ctx.beginPath();
-        ctx.arc(el.x, el.y, 8, 0, Math.PI * 2);
+        ctx.arc(el.x, el.y, 9, 0, Math.PI * 2);
         ctx.fillStyle = el.color;
         ctx.fill();
         ctx.lineWidth = 2;
         ctx.strokeStyle = info.isInside10m ? '#ff1744' : '#111111';
         ctx.stroke();
 
-        // Dragging Highlight Ring
-        if (isDragging && draggedDot === el) {
+        // Selected active player highlight
+        const activePlayer = roster[activePlayerIndex];
+        if (activePlayer && el.playerId === activePlayer.id) {
           ctx.beginPath();
-          ctx.arc(el.x, el.y, 12, 0, Math.PI * 2);
+          ctx.arc(el.x, el.y, 14, 0, Math.PI * 2);
           ctx.strokeStyle = '#ffffff';
           ctx.lineWidth = 2;
           ctx.stroke();
         }
 
-        // Auto Position Tag
-        if (showPosLabels) {
-          const posName = getPositionName(el.x, el.y);
+        // Fielder Label (Name + Position)
+        const posName = getPositionName(el.x, el.y);
+        const labelText = showPosLabels ? `${el.playerName || 'Fielder'}: ${posName}` : (el.playerName || '');
+
+        if (labelText) {
           ctx.save();
           ctx.font = "600 9.5px -apple-system, BlinkMacSystemFont, sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
 
-          const textMetrics = ctx.measureText(posName);
-          const padX = 4;
+          const textMetrics = ctx.measureText(labelText);
+          const padX = 5;
           const boxW = textMetrics.width + (padX * 2);
-          const boxH = 13;
-          const tagY = el.y + 16;
+          const boxH = 14;
+          const tagY = el.y + 17;
 
-          ctx.fillStyle = info.isInside10m ? "rgba(180, 20, 20, 0.9)" : "rgba(18, 24, 20, 0.85)";
+          ctx.fillStyle = info.isInside10m ? "rgba(180, 20, 20, 0.9)" : "rgba(18, 24, 20, 0.88)";
           ctx.beginPath();
           ctx.roundRect(el.x - boxW / 2, tagY - boxH / 2, boxW, boxH, 3);
           ctx.fill();
 
           ctx.fillStyle = "#ffffff";
-          ctx.fillText(posName, el.x, tagY);
+          ctx.fillText(labelText, el.x, tagY);
           ctx.restore();
         }
 
@@ -701,13 +812,12 @@
       }
     });
 
-    // Draw Live Restriction & Count Badge
     drawPillBadge(deepCount, ringCount, slipsCount, safetyBreach, dotCount);
 
     if (arrowStart && currentMode === 'arrow') {
       ctx.beginPath();
       ctx.arc(arrowStart.x, arrowStart.y, 5, 0, Math.PI * 2);
-      ctx.fillStyle = currentColor;
+      ctx.fillStyle = roster[activePlayerIndex]?.color || '#ffffff';
       ctx.fill();
     }
   }
@@ -724,6 +834,12 @@
         isDragging = true;
         draggedDot = hitDot;
         dragMoved = false;
+        // Set active player to this dot's player
+        const rIdx = roster.findIndex(p => p.id === hitDot.playerId);
+        if (rIdx !== -1) {
+          activePlayerIndex = rIdx;
+          renderRoster();
+        }
         canvas.style.cursor = 'grabbing';
       }
     }
@@ -767,10 +883,36 @@
     if (currentMode === 'dot') {
       const hitDot = elements.find(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= 18);
       if (!hitDot) {
-        elements.push({ type: 'dot', x, y, color: currentColor });
+        // Choose active player or next unassigned player
+        let p = roster[activePlayerIndex];
+        const alreadyOnField = elements.some(el => el.type === 'dot' && el.playerId === p.id);
+        if (alreadyOnField) {
+          // Find next player not yet placed
+          const unassigned = roster.find(candidate => !elements.some(el => el.type === 'dot' && el.playerId === candidate.id));
+          if (unassigned) {
+            p = unassigned;
+            activePlayerIndex = roster.indexOf(p);
+          }
+        }
+
+        elements.push({
+          type: 'dot',
+          x,
+          y,
+          color: p.color,
+          playerId: p.id,
+          playerName: p.name
+        });
+
+        // Advance to next player
+        if (activePlayerIndex < 10) {
+          activePlayerIndex++;
+        }
+        renderRoster();
         drawCanvas();
       }
     } else if (currentMode === 'arrow') {
+      const playerColor = roster[activePlayerIndex]?.color || '#ffffff';
       if (!arrowStart) {
         arrowStart = { x, y };
         drawCanvas();
@@ -781,7 +923,7 @@
           y1: arrowStart.y,
           x2: x,
           y2: y,
-          color: currentColor
+          color: playerColor
         });
         arrowStart = null;
         drawCanvas();
@@ -789,7 +931,7 @@
     } else if (currentMode === 'label') {
       const text = document.getElementById('labelText').value.trim();
       if (text) {
-        elements.push({ type: 'label', x, y, text: text, color: currentColor });
+        elements.push({ type: 'label', x, y, text: text, color: '#ffffff' });
         drawCanvas();
       }
     } else if (currentMode === 'delete') {
@@ -803,6 +945,7 @@
       });
       if (idx !== -1) {
         elements.splice(idx, 1);
+        renderRoster();
         drawCanvas();
       }
     }
@@ -811,6 +954,7 @@
   function undo() {
     elements.pop();
     arrowStart = null;
+    renderRoster();
     drawCanvas();
   }
 
@@ -818,14 +962,62 @@
     if (confirm("Reset all field marks?")) {
       elements = [];
       arrowStart = null;
+      renderRoster();
       drawCanvas();
     }
   }
 
+  // Export includes the team sheet legend neatly at the bottom
   function exportImage() {
+    const exportCanvas = document.createElement('canvas');
+    const expCtx = exportCanvas.getContext('2d');
+
+    const legendHeight = 120;
+    exportCanvas.width = canvas.width;
+    exportCanvas.height = canvas.height + legendHeight;
+
+    // Draw field
+    expCtx.drawImage(canvas, 0, 0);
+
+    // Draw Legend panel
+    expCtx.fillStyle = "#1e1e24";
+    expCtx.fillRect(0, canvas.height, exportCanvas.width, legendHeight);
+
+    expCtx.fillStyle = "#a5d6a7";
+    expCtx.font = "bold 13px -apple-system, BlinkMacSystemFont, sans-serif";
+    expCtx.fillText("TEAM SHEET & FIELDING ROSTER", 25, canvas.height + 25);
+
+    // 2 rows of player cards
+    const startX = 25;
+    const startY = canvas.height + 45;
+    const colW = 125;
+    const rowH = 30;
+
+    roster.forEach((p, i) => {
+      const col = i % 6;
+      const row = Math.floor(i / 6);
+      const px = startX + (col * colW);
+      const py = startY + (row * rowH);
+
+      // Swatch
+      expCtx.beginPath();
+      expCtx.arc(px + 6, py + 8, 6, 0, Math.PI * 2);
+      expCtx.fillStyle = p.color;
+      expCtx.fill();
+      expCtx.strokeStyle = "#ffffff";
+      expCtx.lineWidth = 1;
+      expCtx.stroke();
+
+      // Name
+      expCtx.fillStyle = "#ffffff";
+      expCtx.font = "11px -apple-system, sans-serif";
+      expCtx.textAlign = "left";
+      expCtx.fillText(`${p.id}. ${p.name}`, px + 18, py + 12);
+    });
+
     const link = document.createElement('a');
     link.download = (document.getElementById('diagTitle').value || 'cricket-field') + '.png';
-    link.href = canvas.toDataURL('image/png');
+    link.href = exportCanvas.toDataURL('image/png');
     link.click();
   }
 
@@ -852,7 +1044,7 @@
 
   function saveCurrentScenario() {
     const currentTitle = document.getElementById('diagTitle').value.trim();
-    const name = prompt("Enter a scenario name to save (e.g. 'Powerplay RHB', 'Spin Attack'):", currentTitle);
+    const name = prompt("Enter a scenario name to save (e.g. 'Powerplay RHB', 'Spin Trap'):", currentTitle);
     if (!name) return;
 
     const scenarios = getSavedScenarios();
@@ -860,6 +1052,7 @@
       title: document.getElementById('diagTitle').value,
       batterHand: document.getElementById('batterHand').value,
       strikerEnd: document.getElementById('strikerEnd').value,
+      roster: roster,
       elements: elements
     };
 
@@ -879,8 +1072,10 @@
       document.getElementById('diagTitle').value = data.title || name;
       document.getElementById('batterHand').value = data.batterHand || 'RHB';
       document.getElementById('strikerEnd').value = data.strikerEnd || 'top';
+      if (data.roster) roster = data.roster;
       elements = JSON.parse(JSON.stringify(data.elements || []));
       arrowStart = null;
+      renderRoster();
       drawCanvas();
     }
   }
@@ -939,6 +1134,7 @@
     });
   }
 
+  renderRoster();
   refreshScenarioDropdown();
   drawCanvas();
 </script>
