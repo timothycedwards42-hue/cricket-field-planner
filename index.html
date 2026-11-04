@@ -63,7 +63,7 @@
       font-weight: 700;
       padding: 4px 8px;
       border-radius: 6px;
-      width: 240px;
+      width: 230px;
       transition: all 0.2s;
     }
     #diagTitle:hover, #diagTitle:focus {
@@ -109,6 +109,13 @@
       background: #2e3040;
       border-color: #4a4e68;
     }
+    .btn-top-pitch {
+      background: #d4a373;
+      border-color: #faedcd;
+      color: #121318;
+      font-weight: 700;
+    }
+    .btn-top-pitch:hover { background: #e9c46a; }
     .btn-top-primary {
       background: var(--accent);
       border-color: var(--accent-bright);
@@ -455,6 +462,57 @@
       color: #fff;
     }
 
+    /* --- PITCH POP-OUT MODAL --- */
+    #pitch-modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(10, 11, 15, 0.88);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .pitch-modal-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      width: 95%;
+      max-width: 480px;
+      box-shadow: 0 16px 50px rgba(0,0,0,0.7);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .pitch-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .pitch-modal-header h3 {
+      font-size: 1.05rem;
+      color: #faedcd;
+    }
+    #pitchModalCanvas {
+      background: #14171d;
+      border-radius: 8px;
+      cursor: crosshair;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.4);
+      margin: 0 auto;
+      touch-action: none;
+    }
+    .target-callout-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
     /* ZEN / PRESENTATION MODE */
     body.zen-mode #top-bar { display: none; }
     body.zen-mode #sidebar { display: none; }
@@ -464,7 +522,7 @@
     body.zen-mode #tool-dock:hover { opacity: 1; }
     body.zen-mode #workspace { height: 100vh; }
 
-    /* Modals */
+    /* General Modals */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -580,6 +638,7 @@
   </div>
 
   <div class="top-right-group">
+    <button class="btn-top btn-top-pitch" onclick="openPitchModal()" title="Open zoomed-in pitch pop-out to place bowling targets">🎯 Pitch View</button>
     <button class="btn-top" onclick="toggleZenMode()" title="Toggle Zen / Presentation Mode (Press 'F' or 'Esc')">📺 Zen Mode</button>
     <button class="btn-top" onclick="copyShareableLink()">🔗 Share</button>
     <button class="btn-top btn-top-primary" onclick="exportImage()">⬇ Export PNG</button>
@@ -619,6 +678,10 @@
       <label class="toggle-row">
         <span>Pitch Lengths & Lines</span>
         <input type="checkbox" id="togglePitchZones" checked onchange="drawCanvas()">
+      </label>
+      <label class="toggle-row" title="Highlights singles gaps in ring & deep boundary pockets">
+        <span style="color: #69f0ae; font-weight: 600;">Show Scoring Zones</span>
+        <input type="checkbox" id="toggleScoringZones" checked onchange="drawCanvas()">
       </label>
       <label class="toggle-row">
         <span>10m Safety Arc</span>
@@ -701,6 +764,34 @@
   <button class="mobile-tab-btn" onclick="toggleDrawer('roster-sidebar')">👥 Squad (14)</button>
 </div>
 
+<!-- PITCH ZOOM & BOWLING TARGET MODAL -->
+<div id="pitch-modal-overlay">
+  <div class="pitch-modal-card">
+    <div class="pitch-modal-header">
+      <div>
+        <h3>22-Yard Pitch & Bowling Plan</h3>
+        <span style="font-size: 0.72rem; color: var(--text-muted);">Tap anywhere on the pitch to set the planned bowling target</span>
+      </div>
+      <button class="btn-top" onclick="closePitchModal()">✕</button>
+    </div>
+
+    <!-- Pitch Canvas (Zoomed View) -->
+    <canvas id="pitchModalCanvas" width="400" height="520"></canvas>
+
+    <div class="target-callout-box">
+      <div>
+        <div style="font-size: 0.7rem; color: var(--text-muted);">TARGET LENGTH & LINE:</div>
+        <div id="pitchTargetText" style="font-weight: 700; color: #ffd54f;">Tap on pitch to place marker</div>
+      </div>
+      <button class="btn-top" onclick="clearPitchTarget()" style="padding: 4px 8px; font-size: 0.72rem;">Clear Target</button>
+    </div>
+
+    <div class="modal-actions" style="margin-top: 4px;">
+      <button type="button" class="btn-top btn-top-primary" onclick="closePitchModal()">Save & Return to Field</button>
+    </div>
+  </div>
+</div>
+
 <!-- Bulk Paste Squad List Modal -->
 <div id="squad-modal-overlay" class="modal-overlay">
   <div class="modal-card">
@@ -719,13 +810,12 @@
   <div class="modal-card" style="max-width: 500px; max-height: 85vh; overflow-y: auto;">
     <h3 style="color: #a5d6a7; font-size: 1.05rem;">Tactics Builder Guide</h3>
     <ul style="font-size: 0.8rem; line-height: 1.6; padding-left: 18px; color: #ddd; display: flex; flex-direction: column; gap: 6px;">
-      <li><strong>Pitch Lengths & Lines:</strong> The shaded channels on the pitch show the Off-Side Corridor of Uncertainty (amber), straight stumps (cyan), and leg side (rose), along with Full, Good, and Short length zones.</li>
-      <li><strong>Placing Fielders:</strong> Select a player in the right squad panel, then tap/click on the oval to drop their dot.</li>
-      <li><strong>Player Numbers:</strong> Each dot shows their squad jersey number (`1` to `14`) so setups stay readable even with names hidden.</li>
+      <li><strong>🎯 Pitch View & Target Pop-out:</strong> Click <em>🎯 Pitch View</em> in the top header to zoom in on the pitch, place a bowling impact target, and see line, length, and trajectory feedback.</li>
+      <li><strong>🟢 Singles & Doubles Shading:</strong> Toggle <em>Show Scoring Zones</em> to see live green gaps for strike rotation in the inner ring and deep blue unprotected pockets for doubles/boundaries.</li>
+      <li><strong>Pitch Lengths & Lines:</strong> The shaded channels on the turf show the Off-Side Corridor of Uncertainty (amber), straight stumps (cyan), and leg side (rose), along with Full, Good, and Short length zones.</li>
+      <li><strong>Placing Fielders:</strong> Select a player in the right squad panel, then tap/click on the oval to drop their dot. Jersey numbers render inside each circle.</li>
       <li><strong>Movement & Shifts:</strong> Tap the field again with the same player active to place a secondary dot, then connect them using <em>➔ Arrow</em>.</li>
-      <li><strong>Add Free Text:</strong> Select <em>T Text</em>, then tap anywhere on the turf to type custom field notes.</li>
       <li><strong>Zen Mode:</strong> Click <em>📺 Zen Mode</em> (or press `F` or `Esc`) to hide all sidebars for clean presentation during team talks. Tap <em>✕ Exit Zen</em> to return.</li>
-      <li><strong>Live Quota HUD:</strong> The top-right glass badge audits Deep, Ring, and Slips in real-time and warns if a fielder breaches the 10m safety arc.</li>
     </ul>
     <div class="modal-actions">
       <button type="button" class="btn-top btn-top-primary" onclick="closeHelpModal()">Got It</button>
@@ -803,6 +893,9 @@
   let batterHand = 'RHB';
   let strikerEnd = 'top';
 
+  // Planned pitch target (relative coordinates: normalized x [-1 to 1], y [0 to 1 from striker crease])
+  let pitchTarget = null; // { normX, normY, label }
+
   const DEFAULT_COLORS = [
     '#ffffff', '#ffd600', '#ff6d00', '#ff1744', 
     '#f06292', '#ba68c8', '#00e676', '#00b0ff', 
@@ -834,6 +927,7 @@
     document.getElementById('btn-rhb').classList.toggle('active', hand === 'RHB');
     document.getElementById('btn-lhb').classList.toggle('active', hand === 'LHB');
     drawCanvas();
+    drawPitchModal();
     pushToCloud();
   }
 
@@ -842,6 +936,7 @@
     document.getElementById('btn-end-north').classList.toggle('active', end === 'top');
     document.getElementById('btn-end-south').classList.toggle('active', end === 'bottom');
     updatePitchEnds();
+    drawPitchModal();
     pushToCloud();
   }
 
@@ -851,7 +946,9 @@
 
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      if (document.body.classList.contains('zen-mode')) {
+      if (document.getElementById('pitch-modal-overlay').style.display === 'flex') {
+        closePitchModal();
+      } else if (document.body.classList.contains('zen-mode')) {
         toggleZenMode();
       }
     } else if (e.key === 'f' || e.key === 'F') {
@@ -1126,7 +1223,81 @@
     return "Fielder";
   }
 
-  // Draw Pitch Lengths & Lateral Bowling Lines
+  // --- DYNAMIC BATTER SCORING ZONES (SINGLES & DOUBLES HEATMAP) ---
+  function drawScoringZones(striker) {
+    ctx.save();
+    
+    const isBottom = striker.isBottom;
+    const fDots = elements.filter(el => el.type === 'dot');
+
+    // Divide angular space into sectors around the batter (-150° to +150°)
+    const sectorCount = 36; // 10 degree slices
+    const angles = [];
+    for (let i = 0; i < sectorCount; i++) {
+      angles.push(-150 + (i * (300 / sectorCount)));
+    }
+
+    // Evaluate single-gap availability (in ring) & boundary/double availability (in deep)
+    angles.forEach(deg => {
+      const rad = deg * (Math.PI / 180);
+      const angleDir = isBottom ? (Math.PI / 2 - rad) : (-Math.PI / 2 + rad);
+
+      // Check distance to closest fielder in this angular cone
+      let minFielderDistRing = 999;
+      let minFielderDistDeep = 999;
+
+      fDots.forEach(f => {
+        const dx = f.x - striker.x;
+        const dy = f.y - striker.y;
+        const dist = Math.hypot(dx, dy);
+        const fAngleDeg = Math.atan2(dx, isBottom ? -dy : dy) * (180 / Math.PI);
+        const diff = Math.abs(deg - fAngleDeg);
+
+        if (diff < 16) {
+          if (dist < 220) minFielderDistRing = Math.min(minFielderDistRing, dist);
+          if (dist >= 200) minFielderDistDeep = Math.min(minFielderDistDeep, dist);
+        }
+      });
+
+      // Shading for Singles: Wide open gaps inside the 30-yd ring in front of the wicket
+      const isFrontOfWicket = Math.abs(deg) < 110;
+      if (isFrontOfWicket && minFielderDistRing > 130) {
+        ctx.beginPath();
+        ctx.moveTo(striker.x, striker.y);
+        const r1 = 80;
+        const r2 = 175;
+        const rad1 = (deg - 4) * (Math.PI / 180);
+        const rad2 = (deg + 4) * (Math.PI / 180);
+
+        const a1 = isBottom ? (Math.PI / 2 - rad1) : (-Math.PI / 2 + rad1);
+        const a2 = isBottom ? (Math.PI / 2 - rad2) : (-Math.PI / 2 + rad2);
+
+        ctx.arc(striker.x, striker.y, r2, a1, a2, !isBottom);
+        ctx.fillStyle = "rgba(0, 230, 118, 0.08)"; // Soft emerald single corridor
+        ctx.fill();
+      }
+
+      // Shading for Doubles / Boundary Pocket: Vacant boundary deep sectors
+      if (minFielderDistDeep > 300) {
+        ctx.beginPath();
+        const rDeep1 = 220;
+        const rDeep2 = 330;
+        const rad1 = (deg - 4.5) * (Math.PI / 180);
+        const rad2 = (deg + 4.5) * (Math.PI / 180);
+
+        const a1 = isBottom ? (Math.PI / 2 - rad1) : (-Math.PI / 2 + rad1);
+        const a2 = isBottom ? (Math.PI / 2 - rad2) : (-Math.PI / 2 + rad2);
+
+        ctx.arc(striker.x, striker.y, rDeep2, a1, a2, !isBottom);
+        ctx.fillStyle = "rgba(41, 121, 255, 0.07)"; // Soft blue doubles pocket
+        ctx.fill();
+      }
+    });
+
+    ctx.restore();
+  }
+
+  // Draw Pitch Lengths & Lateral Bowling Lines on Ground Canvas
   function drawPitchZones(pitchLeft, pitchTop, pitchW, pitchH, striker) {
     ctx.save();
     
@@ -1134,94 +1305,78 @@
     const isLHB = batterHand === 'LHB';
     const creaseY = isBottom ? (CY + pitchH / 2 - 20) : (CY - pitchH / 2 + 20);
     const nonStrikerCreaseY = isBottom ? (CY - pitchH / 2 + 20) : (CY + pitchH / 2 - 20);
-    const dir = isBottom ? -1 : 1; // 1 = downward towards bowler, -1 = upward towards bowler
+    const dir = isBottom ? -1 : 1;
 
-    // Length thresholds in pixels (Pitch is 110px crease-to-crease ~ 20.12m; ~5.5px per metre)
-    // Full: 0-22px (0-4m), Good: 22-42px (4-7.5m), Short: 42-68px (7.5-12m)
     const fullY = creaseY + (24 * dir);
     const goodY = creaseY + (48 * dir);
     const shortY = creaseY + (74 * dir);
 
-    // --- 1. LATERAL BOWLING CHANNELS (SHADING) ---
-    // Stumps width ~ 10px in scale; Channel outside off-stump ~ 14px
     const stumpChannelW = 10;
     const offChannelW = 13;
     const legChannelW = 12;
 
-    // Off-side direction in canvas pixels:
-    // For North striker: RHB offside is LEFT (-1), LHB offside is RIGHT (+1)
-    // For South striker: inverted
-    let offDir = -1;
-    if (!isBottom) {
-      offDir = isLHB ? 1 : -1;
-    } else {
-      offDir = isLHB ? -1 : 1;
-    }
-
+    let offDir = (!isBottom) ? (isLHB ? 1 : -1) : (isLHB ? -1 : 1);
     const yMin = Math.min(creaseY, nonStrikerCreaseY);
     const yLength = Math.abs(nonStrikerCreaseY - creaseY);
 
-    // A. 4th Stump / Corridor of Uncertainty (Amber/Cyan Glow)
+    // Channel Shading
     const offChanX = offDir === -1 ? (CX - stumpChannelW / 2 - offChannelW) : (CX + stumpChannelW / 2);
-    ctx.fillStyle = "rgba(255, 183, 77, 0.22)"; // Warm amber
+    ctx.fillStyle = "rgba(255, 183, 77, 0.22)";
     ctx.fillRect(offChanX, yMin, offChannelW, yLength);
     ctx.strokeStyle = "rgba(255, 183, 77, 0.45)";
     ctx.lineWidth = 1;
     ctx.strokeRect(offChanX, yMin, offChannelW, yLength);
 
-    // B. Straight / Stumps Target Channel (Teal/Cyan)
-    ctx.fillStyle = "rgba(38, 198, 218, 0.18)"; // Cyan
+    ctx.fillStyle = "rgba(38, 198, 218, 0.18)";
     ctx.fillRect(CX - stumpChannelW / 2, yMin, stumpChannelW, yLength);
 
-    // C. Leg Side / Pads Corridor (Rose/Magenta)
     const legChanX = offDir === -1 ? (CX + stumpChannelW / 2) : (CX - stumpChannelW / 2 - legChannelW);
-    ctx.fillStyle = "rgba(240, 98, 146, 0.15)"; // Rose
+    ctx.fillStyle = "rgba(240, 98, 146, 0.15)";
     ctx.fillRect(legChanX, yMin, legChannelW, yLength);
 
-    // --- 2. PITCH LENGTH LINES & TEXT LABELS ---
+    // Length Lines
     ctx.setLineDash([3, 3]);
     ctx.lineWidth = 1;
     ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
-
-    // Full Line
     ctx.beginPath();
-    ctx.moveTo(pitchLeft, fullY);
-    ctx.lineTo(pitchLeft + pitchW, fullY);
-    ctx.stroke();
-
-    // Good Length Line
-    ctx.beginPath();
-    ctx.moveTo(pitchLeft, goodY);
-    ctx.lineTo(pitchLeft + pitchW, goodY);
-    ctx.stroke();
-
-    // Short Line
-    ctx.beginPath();
-    ctx.moveTo(pitchLeft, shortY);
-    ctx.lineTo(pitchLeft + pitchW, shortY);
+    ctx.moveTo(pitchLeft, fullY); ctx.lineTo(pitchLeft + pitchW, fullY);
+    ctx.moveTo(pitchLeft, goodY); ctx.lineTo(pitchLeft + pitchW, goodY);
+    ctx.moveTo(pitchLeft, shortY); ctx.lineTo(pitchLeft + pitchW, shortY);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // --- 3. LENGTH LABELS (Planted beside the pitch edge) ---
+    // Length Labels
     ctx.font = "bold 8px -apple-system, sans-serif";
     ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
     ctx.textAlign = offDir === -1 ? "right" : "left";
     const labelX = offDir === -1 ? (pitchLeft - 4) : (pitchLeft + pitchW + 4);
+    ctx.fillText("FULL", labelX, (creaseY + fullY) / 2 + 3);
+    ctx.fillText("GOOD", labelX, (fullY + goodY) / 2 + 3);
+    ctx.fillText("SHORT", labelX, (goodY + shortY) / 2 + 3);
 
-    const midFullY = (creaseY + fullY) / 2;
-    const midGoodY = (fullY + goodY) / 2;
-    const midShortY = (goodY + shortY) / 2;
+    // Draw Planned Target Marker on Pitch if Set
+    if (pitchTarget) {
+      const targetScreenY = creaseY + (pitchTarget.normY * 110 * dir);
+      const targetScreenX = CX + (pitchTarget.normX * (pitchW / 2 - 4) * (offDir === -1 ? 1 : -1));
 
-    ctx.fillText("FULL", labelX, midFullY + 3);
-    ctx.fillText("GOOD", labelX, midGoodY + 3);
-    ctx.fillText("SHORT", labelX, midShortY + 3);
+      ctx.beginPath();
+      ctx.arc(targetScreenX, targetScreenY, 6, 0, Math.PI * 2);
+      ctx.fillStyle = "#ff1744";
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#ffffff";
+      ctx.stroke();
 
-    // Lateral Channel Label
-    ctx.font = "bold 7px -apple-system, sans-serif";
-    ctx.fillStyle = "rgba(255, 213, 79, 0.95)";
-    ctx.textAlign = "center";
-    const channelHeaderY = isBottom ? (creaseY - 6) : (creaseY + 9);
-    ctx.fillText("CHANNEL", offChanX + offChannelW / 2, channelHeaderY);
+      // Trajectory Line from Bowler Crease
+      ctx.beginPath();
+      ctx.moveTo(CX, nonStrikerCreaseY);
+      ctx.lineTo(targetScreenX, targetScreenY);
+      ctx.strokeStyle = "rgba(255, 235, 59, 0.75)";
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([4, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     ctx.restore();
   }
@@ -1253,6 +1408,15 @@
     ctx.stroke();
     ctx.setLineDash([]);
 
+    const striker = getStrikerCoords();
+    const isLHB = batterHand === 'LHB';
+
+    // Optional Batter Scoring Zones (Singles & Doubles Heatmap)
+    const showScoringZones = document.getElementById('toggleScoringZones').checked;
+    if (showScoringZones) {
+      drawScoringZones(striker);
+    }
+
     // Pitch Box
     const pitchW = 46;
     const pitchLeft = CX - pitchW / 2;
@@ -1263,11 +1427,7 @@
     ctx.lineWidth = 1.5;
     ctx.strokeRect(pitchLeft, pitchTop, pitchW, PITCH_H);
 
-    // Striker Stance Marker
-    const striker = getStrikerCoords();
-    const isLHB = batterHand === 'LHB';
-
-    // Optional Pitch Length & Line Corridor Overlay
+    // Pitch Lengths & Lines Overlay
     const showPitchZones = document.getElementById('togglePitchZones').checked;
     if (showPitchZones) {
       drawPitchZones(pitchLeft, pitchTop, pitchW, PITCH_H, striker);
@@ -1649,6 +1809,217 @@
   canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
   window.addEventListener('touchend', handlePointerUp, { passive: true });
 
+  // ==========================================
+  // --- PITCH ZOOM POP-OUT & BOWLING TARGET ---
+  // ==========================================
+  const pModalCanvas = document.getElementById('pitchModalCanvas');
+  const pCtx = pModalCanvas.getContext('2d');
+
+  function openPitchModal() {
+    document.getElementById('pitch-modal-overlay').style.display = 'flex';
+    drawPitchModal();
+  }
+
+  function closePitchModal() {
+    document.getElementById('pitch-modal-overlay').style.display = 'none';
+    drawCanvas();
+    pushToCloud();
+  }
+
+  function clearPitchTarget() {
+    pitchTarget = null;
+    document.getElementById('pitchTargetText').textContent = "Tap on pitch to place marker";
+    drawPitchModal();
+    drawCanvas();
+    pushToCloud();
+  }
+
+  function evaluatePitchLocation(normX, normY) {
+    // normY: 0 (at popping crease) to 1 (at bowler crease)
+    let lengthName = "Good Length";
+    if (normY < 0.22) lengthName = "Full / Yorker";
+    else if (normY < 0.45) lengthName = "Good Length";
+    else if (normY < 0.70) lengthName = "Short of a Length";
+    else lengthName = "Bouncer / Dug In";
+
+    // normX: -1 (wide off) to +1 (wide leg) relative to striker
+    let lineName = "On the Stumps";
+    if (normX < -0.45) lineName = "Wide Outside Off";
+    else if (normX < -0.15) lineName = "4th Stump Corridor";
+    else if (normX <= 0.18) lineName = "Straight (Stumps)";
+    else if (normX <= 0.50) lineName = "Pads / Leg Stump";
+    else lineName = "Down Leg Side";
+
+    return `${lengthName} • ${lineName}`;
+  }
+
+  function drawPitchModal() {
+    pCtx.clearRect(0, 0, pModalCanvas.width, pModalCanvas.height);
+
+    const PW = 160;
+    const PH = 420;
+    const PX = (pModalCanvas.width - PW) / 2;
+    const PY = 50;
+
+    // Background Turf
+    pCtx.fillStyle = "#1e3822";
+    pCtx.fillRect(0, 0, pModalCanvas.width, pModalCanvas.height);
+
+    // Pitch Canvas Box
+    pCtx.fillStyle = "#c7b088";
+    pCtx.fillRect(PX, PY, PW, PH);
+    pCtx.strokeStyle = "#8d7751";
+    pCtx.lineWidth = 2;
+    pCtx.strokeRect(PX, PY, PW, PH);
+
+    const isLHB = batterHand === 'LHB';
+    const isBottom = strikerEnd === 'bottom';
+    // On modal: Striker crease at top (y = PY + 40), Bowler crease at bottom (y = PY + PH - 40)
+    const creaseY = PY + 40;
+    const bowlerCreaseY = PY + PH - 40;
+    const pitchLength = bowlerCreaseY - creaseY; // 340px
+
+    // Bowling Length Zones
+    const fullY = creaseY + (pitchLength * 0.22);
+    const goodY = creaseY + (pitchLength * 0.45);
+    const shortY = creaseY + (pitchLength * 0.70);
+
+    // Lateral Corridor Shading (Off-side vs Leg-side based on RHB/LHB)
+    const offDir = isLHB ? 1 : -1; // -1 = Left is Off, 1 = Right is Off
+    const stumpW = 28;
+    const offChanW = 44;
+    const legChanW = 38;
+    const centerX = PX + PW / 2;
+
+    // 4th Stump Channel
+    const offX = offDir === -1 ? (centerX - stumpW/2 - offChanW) : (centerX + stumpW/2);
+    pCtx.fillStyle = "rgba(255, 183, 77, 0.24)";
+    pCtx.fillRect(offX, creaseY, offChanW, pitchLength);
+    pCtx.strokeStyle = "rgba(255, 183, 77, 0.55)";
+    pCtx.lineWidth = 1.2;
+    pCtx.strokeRect(offX, creaseY, offChanW, pitchLength);
+
+    // Stumps Channel
+    pCtx.fillStyle = "rgba(38, 198, 218, 0.2)";
+    pCtx.fillRect(centerX - stumpW/2, creaseY, stumpW, pitchLength);
+
+    // Leg Side
+    const legX = offDir === -1 ? (centerX + stumpW/2) : (centerX - stumpW/2 - legChanW);
+    pCtx.fillStyle = "rgba(240, 98, 146, 0.16)";
+    pCtx.fillRect(legX, creaseY, legChanW, pitchLength);
+
+    // Length Boundaries
+    pCtx.setLineDash([4, 4]);
+    pCtx.strokeStyle = "rgba(255, 255, 255, 0.6)";
+    pCtx.lineWidth = 1.5;
+    [fullY, goodY, shortY].forEach(y => {
+      pCtx.beginPath();
+      pCtx.moveTo(PX, y);
+      pCtx.lineTo(PX + PW, y);
+      pCtx.stroke();
+    });
+    pCtx.setLineDash([]);
+
+    // Stumps / Stems
+    pCtx.fillStyle = "#ffffff";
+    pCtx.fillRect(centerX - 12, creaseY - 14, 24, 6); // Striker stumps
+    pCtx.fillRect(centerX - 12, bowlerCreaseY + 8, 24, 6); // Non-striker stumps
+
+    // Crease Lines
+    pCtx.strokeStyle = "#ffffff";
+    pCtx.lineWidth = 2.5;
+    pCtx.beginPath();
+    pCtx.moveTo(PX - 12, creaseY); pCtx.lineTo(PX + PW + 12, creaseY);
+    pCtx.moveTo(PX - 12, bowlerCreaseY); pCtx.lineTo(PX + PW + 12, bowlerCreaseY);
+    pCtx.stroke();
+
+    // Length Labels Beside Pitch
+    pCtx.font = "bold 10px -apple-system, sans-serif";
+    pCtx.fillStyle = "rgba(255, 255, 255, 0.9)";
+    pCtx.textAlign = offDir === -1 ? "right" : "left";
+    const labelX = offDir === -1 ? (PX - 10) : (PX + PW + 10);
+    pCtx.fillText("YORKER / FULL", labelX, (creaseY + fullY) / 2 + 4);
+    pCtx.fillText("GOOD LENGTH", labelX, (fullY + goodY) / 2 + 4);
+    pCtx.fillText("BACK OF LENGTH", labelX, (goodY + shortY) / 2 + 4);
+    pCtx.fillText("SHORT / BOUNCER", labelX, (shortY + bowlerCreaseY) / 2 + 4);
+
+    // Batter & Bowler Position Badges
+    pCtx.font = "bold 11px sans-serif";
+    pCtx.textAlign = "center";
+    pCtx.fillStyle = "#ff5252";
+    pCtx.fillText(`BATTER CREASE (${isLHB ? 'LHB' : 'RHB'})`, centerX, creaseY - 24);
+
+    pCtx.fillStyle = "#81c784";
+    pCtx.fillText("BOWLER RELEASE CREASE", centerX, bowlerCreaseY + 30);
+
+    // Channel Indicator Label
+    pCtx.fillStyle = "#ffd54f";
+    pCtx.font = "bold 9px sans-serif";
+    pCtx.fillText("4TH STUMP CHANNEL", offX + offChanW / 2, creaseY - 6);
+
+    // Draw Target Reticle if Active
+    if (pitchTarget) {
+      const targetY = creaseY + (pitchTarget.normY * pitchLength);
+      const targetX = centerX + (pitchTarget.normX * (PW / 2 - 12) * offDir);
+
+      // Trajectory arc
+      pCtx.beginPath();
+      pCtx.moveTo(centerX, bowlerCreaseY);
+      pCtx.quadraticCurveTo(targetX, (bowlerCreaseY + targetY) / 2, targetX, targetY);
+      pCtx.strokeStyle = "rgba(255, 235, 59, 0.85)";
+      pCtx.lineWidth = 2.5;
+      pCtx.setLineDash([5, 5]);
+      pCtx.stroke();
+      pCtx.setLineDash([]);
+
+      // Target Rings
+      pCtx.beginPath();
+      pCtx.arc(targetX, targetY, 14, 0, Math.PI * 2);
+      pCtx.strokeStyle = "rgba(255, 23, 68, 0.5)";
+      pCtx.lineWidth = 2;
+      pCtx.stroke();
+
+      pCtx.beginPath();
+      pCtx.arc(targetX, targetY, 7, 0, Math.PI * 2);
+      pCtx.fillStyle = "#ff1744";
+      pCtx.fill();
+      pCtx.strokeStyle = "#ffffff";
+      pCtx.lineWidth = 2;
+      pCtx.stroke();
+    }
+  }
+
+  pModalCanvas.addEventListener('pointerdown', (e) => {
+    const rect = pModalCanvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    const PW = 160;
+    const PH = 420;
+    const PX = (pModalCanvas.width - PW) / 2;
+    const PY = 50;
+    const creaseY = PY + 40;
+    const bowlerCreaseY = PY + PH - 40;
+    const pitchLength = bowlerCreaseY - creaseY;
+    const centerX = PX + PW / 2;
+    const isLHB = batterHand === 'LHB';
+    const offDir = isLHB ? 1 : -1;
+
+    // Check if within pitch bounds
+    if (clickY >= creaseY && clickY <= bowlerCreaseY && clickX >= PX && clickX <= PX + PW) {
+      const normY = (clickY - creaseY) / pitchLength;
+      const rawNormX = (clickX - centerX) / (PW / 2 - 12);
+      const normX = rawNormX * offDir; // Normalized relative to batter off-side
+
+      const desc = evaluatePitchLocation(normX, normY);
+      pitchTarget = { normX, normY, label: desc };
+      document.getElementById('pitchTargetText').textContent = desc;
+      drawPitchModal();
+      drawCanvas();
+      pushToCloud();
+    }
+  });
+
   function undo() {
     elements.pop();
     arrowStart = null;
@@ -1661,6 +2032,7 @@
     if (confirm("Reset all marks on the ground?")) {
       elements = [];
       arrowStart = null;
+      pitchTarget = null;
       roster.forEach(p => p.role = null);
       renderRoster();
       drawCanvas();
@@ -1722,6 +2094,7 @@
       title: document.getElementById('diagTitle').value,
       batterHand: batterHand,
       strikerEnd: strikerEnd,
+      pitchTarget: pitchTarget,
       roster: roster,
       elements: elements
     };
@@ -1732,7 +2105,7 @@
     url.hash = `data=${encoded}`;
 
     navigator.clipboard.writeText(url.toString()).then(() => {
-      alert("Link copied! Text or email this URL to load this exact field plan on any device.");
+      alert("Link copied! Text or email this URL to load this exact field plan and bowling target on any device.");
     }).catch(() => {
       prompt("Copy this shareable link:", url.toString());
     });
@@ -1749,6 +2122,10 @@
         document.getElementById('diagTitle').value = data.title || 'Shared Field Plan';
         setBatterHand(data.batterHand || 'RHB');
         setBowlingEnd(data.strikerEnd || 'top');
+        if (data.pitchTarget) {
+          pitchTarget = data.pitchTarget;
+          document.getElementById('pitchTargetText').textContent = pitchTarget.label || "Custom Target";
+        }
         if (data.roster) roster = data.roster;
         elements = data.elements || [];
         renderRoster();
@@ -1809,8 +2186,12 @@
         }
         if (data.data.currentElements) {
           elements = data.data.currentElements;
-          drawCanvas();
         }
+        if (data.data.pitchTarget) {
+          pitchTarget = data.data.pitchTarget;
+          document.getElementById('pitchTargetText').textContent = pitchTarget.label || "Custom Target";
+        }
+        drawCanvas();
         updateSyncUI(true, `Team: ${activeTeamCode}`);
       } else {
         await pushToCloud();
@@ -1830,6 +2211,7 @@
       squadLists: getSavedSquadLists(),
       currentRoster: roster,
       currentElements: elements,
+      pitchTarget: pitchTarget,
       updatedAt: new Date().toISOString()
     };
 
@@ -1991,6 +2373,7 @@
       title: document.getElementById('diagTitle').value,
       batterHand: batterHand,
       strikerEnd: strikerEnd,
+      pitchTarget: pitchTarget,
       roster: roster,
       elements: elements
     };
@@ -2009,6 +2392,13 @@
       document.getElementById('diagTitle').value = data.title || name;
       setBatterHand(data.batterHand || 'RHB');
       setBowlingEnd(data.strikerEnd || 'top');
+      if (data.pitchTarget) {
+        pitchTarget = data.pitchTarget;
+        document.getElementById('pitchTargetText').textContent = pitchTarget.label || "Custom Target";
+      } else {
+        pitchTarget = null;
+        document.getElementById('pitchTargetText').textContent = "Tap on pitch to place marker";
+      }
       if (data.roster) roster = data.roster;
       elements = JSON.parse(JSON.stringify(data.elements || []));
       arrowStart = null;
