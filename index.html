@@ -174,6 +174,7 @@
       border-radius: 6px;
       cursor: pointer;
       transition: all 0.15s;
+      text-align: center;
     }
     .segment-btn.active {
       background: var(--surface-elevated);
@@ -775,12 +776,12 @@
       <button class="btn-top" onclick="closePitchModal()">✕</button>
     </div>
 
-    <!-- Bowler Delivery Angle Toggle (Over vs Around the Wicket) -->
+    <!-- Bowler Delivery Angle Toggle (Left vs Right of Stumps) -->
     <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
       <span style="font-size: 0.75rem; font-weight: 700; color: #cfd8dc;">DELIVERY ANGLE:</span>
       <div class="segmented-control" style="width: 280px;">
-        <button class="segment-btn active" id="btn-over-wkt" onclick="setBowlingAngle('over')">Over the Wicket (Left)</button>
-        <button class="segment-btn" id="btn-around-wkt" onclick="setBowlingAngle('around')">Around the Wicket (Right)</button>
+        <button class="segment-btn" id="btn-bowler-left" onclick="setBowlingAngle('left')">Left of Stumps</button>
+        <button class="segment-btn active" id="btn-bowler-right" onclick="setBowlingAngle('right')">Right of Stumps</button>
       </div>
     </div>
 
@@ -819,7 +820,7 @@
   <div class="modal-card" style="max-width: 500px; max-height: 85vh; overflow-y: auto;">
     <h3 style="color: #a5d6a7; font-size: 1.05rem;">Tactics Builder Guide</h3>
     <ul style="font-size: 0.8rem; line-height: 1.6; padding-left: 18px; color: #ddd; display: flex; flex-direction: column; gap: 6px;">
-      <li><strong>🎯 Delivery Angle & Pitch View:</strong> Click <em>🎯 Pitch View</em> to set target length and line. Toggle between <em>Over the Wicket</em> (releases to the left of stumps) and <em>Around the Wicket</em> (releases to the right of stumps).</li>
+      <li><strong>🎯 Delivery Angle & Pitch View:</strong> Click <em>🎯 Pitch View</em> to set target length and line. Toggle between <em>Left of Stumps</em> and <em>Right of Stumps</em> to set release position. Outside Off (4th Stump) is situated on the left of the pitch.</li>
       <li><strong>🟡 Fielder Shadow & Scoring Gaps:</strong> Toggle <em>Show Scoring Gaps</em> to visualize open boundary lanes. Fielders block scoring directly in front of them and cast realistic defense shadows all the way to the boundary fence.</li>
       <li><strong>Pitch Lengths & Lines:</strong> The shaded channels on the turf show the Off-Side Corridor of Uncertainty (amber), straight stumps (cyan), and leg side (rose), along with Full, Good, and Short length zones.</li>
       <li><strong>Placing Fielders:</strong> Select a player in the right squad panel, then tap/click on the oval to drop their dot. Fielders cannot be placed or dragged beyond the boundary rope.</li>
@@ -901,8 +902,8 @@
   let batterHand = 'RHB';
   let strikerEnd = 'top';
 
-  // Bowling Angle in Pitch Pop-out ('over' vs 'around')
-  let bowlingAngle = 'over';
+  // Bowling Angle in Pitch Pop-out ('left' vs 'right' of stumps)
+  let bowlingAngle = 'right';
 
   // Planned pitch target (relative coordinates: normalized x [-1 to 1], y [0 to 1 from striker crease])
   let pitchTarget = null; // { normX, normY, label }
@@ -977,8 +978,8 @@
 
   function setBowlingAngle(angle) {
     bowlingAngle = angle;
-    document.getElementById('btn-over-wkt').classList.toggle('active', angle === 'over');
-    document.getElementById('btn-around-wkt').classList.toggle('active', angle === 'around');
+    document.getElementById('btn-bowler-left').classList.toggle('active', angle === 'left');
+    document.getElementById('btn-bowler-right').classList.toggle('active', angle === 'right');
     drawPitchModal();
     drawCanvas();
     pushToCloud();
@@ -1024,9 +1025,8 @@
 
   function getAutoPositions() {
     const striker = getStrikerCoords();
-    // Over the wicket = Left side of bowler (-22px)
-    // Around the wicket = Right side of bowler (+22px)
-    const releaseShift = (bowlingAngle === 'around') ? 22 : -22;
+    // Left of stumps = -20px; Right of stumps = +20px
+    const releaseShift = (bowlingAngle === 'left') ? -20 : 20;
 
     if (!striker.isBottom) {
       return {
@@ -1370,6 +1370,7 @@
     const nonStrikerCreaseY = isBottom ? (CY - pitchH / 2 + 20) : (CY + pitchH / 2 - 20);
     const dir = isBottom ? -1 : 1;
 
+    // Measured forward from striker crease
     const fullY = creaseY + (24 * dir);
     const goodY = creaseY + (48 * dir);
     const shortY = creaseY + (74 * dir);
@@ -1378,6 +1379,7 @@
     const offChannelW = 13;
     const legChannelW = 12;
 
+    // Left of pitch on ground: RHB off-side = Left (-1), LHB off-side = Right (+1)
     let offDir = (!isBottom) ? (isLHB ? 1 : -1) : (isLHB ? -1 : 1);
     const yMin = Math.min(creaseY, nonStrikerCreaseY);
     const yLength = Math.abs(nonStrikerCreaseY - creaseY);
@@ -1416,11 +1418,11 @@
 
     if (pitchTarget) {
       const targetScreenY = creaseY + (pitchTarget.normY * 110 * dir);
-      const targetScreenX = CX + (pitchTarget.normX * (pitchW / 2 - 4) * (offDir === -1 ? 1 : -1));
+      // normX < 0 is Left of screen
+      const targetScreenX = CX + (pitchTarget.normX * (pitchW / 2 - 4) * (offDir === -1 ? -1 : 1));
 
-      // Over the wicket = Left side of bowler (-20px)
-      // Around the wicket = Right side of bowler (+20px)
-      const releaseShift = (bowlingAngle === 'around') ? 20 : -20;
+      // Left of stumps = -20px; Right of stumps = +20px
+      const releaseShift = (bowlingAngle === 'left') ? -20 : 20;
       const bowlerReleaseX = CX + (releaseShift * (isBottom ? -1 : 1));
 
       ctx.beginPath();
@@ -1899,12 +1901,14 @@
   }
 
   function evaluatePitchLocation(normX, normY) {
+    // normY: 0 (at popping crease) to 1 (at bowler release crease)
     let lengthName = "Good Length";
     if (normY < 0.22) lengthName = "Yorker / Full";
     else if (normY < 0.45) lengthName = "Good Length";
     else if (normY < 0.70) lengthName = "Back of Length";
     else lengthName = "Short / Bouncer";
 
+    // normX: negative = LEFT of screen (4th stump/outside off for RHB), positive = RIGHT of screen (pads/leg for RHB)
     let lineName = "On the Stumps";
     if (normX < -0.45) lineName = "Wide Outside Off";
     else if (normX < -0.15) lineName = "4th Stump Corridor";
@@ -1912,7 +1916,7 @@
     else if (normX <= 0.50) lineName = "Pads / Leg Stump";
     else lineName = "Down Leg Side";
 
-    const angleTag = bowlingAngle === 'around' ? "Around Wkt (Right)" : "Over Wkt (Left)";
+    const angleTag = bowlingAngle === 'left' ? "Left of Stumps" : "Right of Stumps";
     return `${lengthName} • ${lineName} (${angleTag})`;
   }
 
@@ -1940,12 +1944,12 @@
     const bowlerCreaseY = PY + PH - 38;
     const pitchLength = bowlerCreaseY - creaseY;
 
-    // Measured forward from batter crease
+    // Measured forward from batter crease downwards
     const fullY = creaseY + (pitchLength * 0.22);
     const goodY = creaseY + (pitchLength * 0.45);
     const shortY = creaseY + (pitchLength * 0.70);
 
-    // Looking up pitch: RHB off-side is LEFT (-1), LHB off-side is RIGHT (+1)
+    // 4th stump / Outside Off is strictly on the LEFT (-1) of the screen for RHB
     const offDir = isLHB ? 1 : -1;
     const stumpW = 28;
     const offChanW = 44;
@@ -2009,13 +2013,13 @@
     pCtx.fillText(`BATTER CREASE (${isLHB ? 'LHB' : 'RHB'})`, centerX, creaseY - 22);
 
     // Release Stance:
-    // Over the Wicket = Left on screen (-42px)
-    // Around the Wicket = Right on screen (+42px)
-    const releaseOffsetX = (bowlingAngle === 'around' ? 42 : -42);
+    // Left of stumps = -42px (Left side of screen)
+    // Right of stumps = +42px (Right side of screen)
+    const releaseOffsetX = (bowlingAngle === 'left' ? -42 : 42);
     const bowlerReleaseX = centerX + releaseOffsetX;
 
     pCtx.fillStyle = "#81c784";
-    pCtx.fillText(`BOWLER RELEASE: ${bowlingAngle === 'around' ? 'AROUND THE WICKET (RIGHT)' : 'OVER THE WICKET (LEFT)'}`, centerX, bowlerCreaseY + 30);
+    pCtx.fillText(`BOWLER RELEASE: ${bowlingAngle === 'left' ? 'LEFT OF STUMPS' : 'RIGHT OF STUMPS'}`, centerX, bowlerCreaseY + 30);
 
     // Bowler Release Marker
     pCtx.beginPath();
@@ -2034,7 +2038,7 @@
     // Draw Target Reticle & Angled Trajectory
     if (pitchTarget) {
       const targetY = creaseY + (pitchTarget.normY * pitchLength);
-      const targetX = centerX + (pitchTarget.normX * (PW / 2 - 12) * offDir);
+      const targetX = centerX + (pitchTarget.normX * (PW / 2 - 12));
 
       pCtx.beginPath();
       pCtx.moveTo(bowlerReleaseX, bowlerCreaseY);
@@ -2085,13 +2089,11 @@
     const bowlerCreaseY = PY + PH - 38;
     const pitchLength = bowlerCreaseY - creaseY;
     const centerX = PX + PW / 2;
-    const isLHB = batterHand === 'LHB';
-    const offDir = isLHB ? 1 : -1;
 
     if (clickY >= creaseY && clickY <= bowlerCreaseY && clickX >= PX && clickX <= PX + PW) {
       const normY = (clickY - creaseY) / pitchLength;
-      const rawNormX = (clickX - centerX) / (PW / 2 - 12);
-      const normX = rawNormX * offDir;
+      // normX is directly mapped: negative = left of pitch, positive = right of pitch
+      const normX = (clickX - centerX) / (PW / 2 - 12);
 
       const desc = evaluatePitchLocation(normX, normY);
       pitchTarget = { normX, normY, label: desc };
