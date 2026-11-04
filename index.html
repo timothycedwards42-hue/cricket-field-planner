@@ -1244,10 +1244,15 @@
     return "Fielder";
   }
 
-  // --- FIELD-AWARE SCORING CORRIDORS & SHADOW CASTING (FULL 360°) ---
+    // --- FIELD-AWARE SCORING CORRIDORS & SHADOW CASTING (SEAMLESS 360°) ---
   function drawScoringZones(striker) {
     ctx.save();
-    
+
+    // 1. Clip strictly within the boundary rope so no rays spill onto the grass margins
+    ctx.beginPath();
+    ctx.ellipse(CX, CY, 338, 398, 0, 0, Math.PI * 2);
+    ctx.clip();
+
     const fDots = elements.filter(el => el.type === 'dot');
 
     // Precalculate fielders relative to striker
@@ -1255,75 +1260,91 @@
       const dx = f.x - striker.x;
       const dy = f.y - striker.y;
       const dist = Math.hypot(dx, dy);
-      return { x: f.x, y: f.y, dx, dy, dist };
+
+      // Check if this dot is the bowler near the non-striker stumps
+      const nonStrikerY = striker.isBottom ? (CY - PITCH_H / 2 + 10) : (CY + PITCH_H / 2 - 10);
+      const isBowler = Math.hypot(f.x - CX, f.y - nonStrikerY) < 32;
+
+      return { 
+        x: f.x, 
+        y: f.y, 
+        dx, 
+        dy, 
+        dist, 
+        // Bowler has tighter deflection reach; fielders have full diving reach
+        reach: isBowler ? 9 : 20 
+      };
     });
 
-    const stepAngle = (1.5 * Math.PI) / 180; // 1.5 degree resolution
-    const twoPi = Math.PI * 2;
+    const stepAngle = (1.5 * Math.PI) / 180; // 1.5 degree slice
+    const halfStep = stepAngle / 2;
+    const a = 338; // Ellipse X-radius
+    const b = 398; // Ellipse Y-radius
+    const ox = striker.x - CX;
+    const oy = striker.y - CY;
 
-    // Sweep all 360 degrees around the striker
+    // Sweep full 360 degrees
     for (let theta = -Math.PI; theta < Math.PI; theta += stepAngle) {
       const cos = Math.cos(theta);
       const sin = Math.sin(theta);
 
-      // 1. Raycast to Boundary Ellipse: (x-CX)^2/335^2 + (y-CY)^2/395^2 = 1
-      let maxBoundaryDist = 330;
-      for (let r = 50; r <= 420; r += 10) {
-        const testX = striker.x + r * cos;
-        const testY = striker.y + r * sin;
-        const norm = Math.pow((testX - CX) / 335, 2) + Math.pow((testY - CY) / 395, 2);
-        if (norm >= 1.0) {
-          maxBoundaryDist = r;
-          break;
-        }
+      // 2. Exact mathematical intersection with boundary ellipse:
+      // ((ox + r*cos)/a)^2 + ((oy + r*sin)/b)^2 = 1 -> A*r^2 + 2*B*r + C = 0
+      const A = (cos * cos) / (a * a) + (sin * sin) / (b * b);
+      const B = (ox * cos) / (a * a) + (oy * sin) / (b * b);
+      const C_val = (ox * ox) / (a * a) + (oy * oy) / (b * b) - 1;
+      const disc = B * B - A * C_val;
+
+      let maxBoundaryDist = 360;
+      if (disc >= 0) {
+        const rSol = (-B + Math.sqrt(disc)) / A;
+        if (rSol > 0) maxBoundaryDist = rSol;
       }
 
-      // 2. Intersect Ray with Fielders
-      // Projection along ray: proj = (f.dx * cos + f.dy * sin)
-      // Perpendicular distance: perp = | -f.dx * sin + f.dy * cos |
+      // 3. Ray-to-fielder intersection check
       let interceptDist = maxBoundaryDist;
       let isShadowed = false;
 
       for (let i = 0; i < fielders.length; i++) {
         const f = fielders[i];
-        if (f.dist < 32) continue; // Ignore keeper immediately adjacent to stumps
+        if (f.dist < 32) continue; // Ignore wicketkeeper tucked behind stumps
 
+        // Projection along ray
         const proj = f.dx * cos + f.dy * sin;
-        if (proj > 20 && proj < interceptDist) {
+        if (proj > 25 && proj < interceptDist) {
+          // Perpendicular distance from ray to fielder center
           const perp = Math.abs(-f.dx * sin + f.dy * cos);
-          // Fielder diving interception radius (~22px)
-          if (perp <= 22) {
+          if (perp <= f.reach) {
             interceptDist = proj;
             isShadowed = true;
           }
         }
       }
 
-      const halfStep = stepAngle / 2;
-
-      // 3. Open Scoring Lane (Amber/Gold corridor up to fielder or boundary)
+      // 4. Open Scoring Lane (Amber/Gold corridor up to fielder or boundary fence)
       if (interceptDist > 30) {
         ctx.beginPath();
-        ctx.moveTo(striker.x + 24 * cos, striker.y + 24 * sin);
+        ctx.moveTo(striker.x + 20 * cos, striker.y + 20 * sin);
         ctx.arc(striker.x, striker.y, interceptDist, theta - halfStep, theta + halfStep);
         ctx.lineTo(striker.x, striker.y);
-        ctx.fillStyle = "rgba(255, 215, 0, 0.11)";
+        ctx.fillStyle = "rgba(255, 215, 0, 0.12)";
         ctx.fill();
       }
 
-      // 4. Fielder Defense Shadow (Extends from behind fielder to boundary rope)
+      // 5. Fielder Coverage Shadow (From behind fielder to the rope)
       if (isShadowed && interceptDist < maxBoundaryDist) {
         ctx.beginPath();
         ctx.arc(striker.x, striker.y, maxBoundaryDist, theta - halfStep, theta + halfStep);
-        ctx.arc(striker.x, striker.y, interceptDist + 8, theta + halfStep, theta - halfStep, true);
+        ctx.arc(striker.x, striker.y, interceptDist + 6, theta + halfStep, theta - halfStep, true);
         ctx.closePath();
-        ctx.fillStyle = "rgba(10, 12, 16, 0.42)";
+        ctx.fillStyle = "rgba(10, 12, 16, 0.40)";
         ctx.fill();
       }
     }
 
     ctx.restore();
   }
+
 
 
   // Draw Pitch Lengths & Lateral Bowling Lines on Ground Canvas
