@@ -679,8 +679,8 @@
         <span>Pitch Lengths & Lines</span>
         <input type="checkbox" id="togglePitchZones" checked onchange="drawCanvas()">
       </label>
-      <label class="toggle-row" title="Highlights singles gaps in ring & deep boundary pockets taking fielder coverage into account">
-        <span style="color: #69f0ae; font-weight: 600;">Show Scoring Zones</span>
+      <label class="toggle-row" title="Highlights scoring corridors and shows fielder shadow coverage out to the boundary">
+        <span style="color: #ffd54f; font-weight: 600;">Show Scoring Gaps</span>
         <input type="checkbox" id="toggleScoringZones" checked onchange="drawCanvas()">
       </label>
       <label class="toggle-row">
@@ -820,7 +820,7 @@
     <h3 style="color: #a5d6a7; font-size: 1.05rem;">Tactics Builder Guide</h3>
     <ul style="font-size: 0.8rem; line-height: 1.6; padding-left: 18px; color: #ddd; display: flex; flex-direction: column; gap: 6px;">
       <li><strong>🎯 Delivery Angle & Pitch View:</strong> Click <em>🎯 Pitch View</em> to set target length and line. Toggle between <em>Over the Wicket</em> (right of stumps) and <em>Around the Wicket</em> (left of stumps) to adjust the release trajectory.</li>
-      <li><strong>🟢 Smart Scoring Zones:</strong> Toggle <em>Show Scoring Zones</em> to see live green gaps for singles and deep blue pockets for boundaries. Gaps dynamically extinguish where fielders are stationed, accounting for diving reach and boundary patrol.</li>
+      <li><strong>🟡 Fielder Shadow & Scoring Gaps:</strong> Toggle <em>Show Scoring Gaps</em> to visualize open boundary lanes. Fielders block scoring directly in front of them and cast realistic defense shadows all the way to the boundary fence.</li>
       <li><strong>Pitch Lengths & Lines:</strong> The shaded channels on the turf show the Off-Side Corridor of Uncertainty (amber), straight stumps (cyan), and leg side (rose), along with Full, Good, and Short length zones.</li>
       <li><strong>Placing Fielders:</strong> Select a player in the right squad panel, then tap/click on the oval to drop their dot. Jersey numbers render inside each circle.</li>
       <li><strong>Movement & Shifts:</strong> Tap the field again with the same player active to place a secondary dot, then connect them using <em>➔ Arrow</em>.</li>
@@ -1244,92 +1244,88 @@
     return "Fielder";
   }
 
-  // --- SMART SCORING ZONES (FIELD-AWARE INTERCEPTION & SHADOWING) ---
+  // --- FIELD-AWARE SCORING CORRIDORS & SHADOW CASTING ---
   function drawScoringZones(striker) {
     ctx.save();
     
     const isBottom = striker.isBottom;
     const fDots = elements.filter(el => el.type === 'dot');
 
-    // Sample fine angular slices (every 3 degrees) around the batter
-    const stepDeg = 3;
-    const startDeg = -150;
-    const endDeg = 150;
+    // Precalculate angle and distance of all fielders relative to striker
+    const fielders = fDots.map(f => {
+      const dx = f.x - striker.x;
+      const dy = f.y - striker.y;
+      const dist = Math.hypot(dx, dy);
+      // Canvas angle in radians from striker
+      const angle = Math.atan2(dy, dx);
+      return { x: f.x, y: f.y, dist, angle };
+    });
 
-    for (let deg = startDeg; deg <= endDeg; deg += stepDeg) {
-      const isFrontOfWicket = Math.abs(deg) < 115;
-      
-      // Calculate angular distance to nearest fielders
-      let closestRingFielder = null;
-      let minFielderDiffRing = 999;
+    const stepAngle = (1.5 * Math.PI) / 180; // 1.5 degree resolution
+    // Sweep the playable field in front of the wicket: 
+    // North striker faces downward (+Y): sweep from 0 to PI
+    // South striker faces upward (-Y): sweep from -PI to 0
+    const startAngle = isBottom ? -Math.PI : 0;
+    const endAngle = isBottom ? 0 : Math.PI;
 
-      let closestDeepFielder = null;
-      let minFielderDiffDeep = 999;
-
-      fDots.forEach(f => {
-        const dx = f.x - striker.x;
-        const dy = f.y - striker.y;
-        const dist = Math.hypot(dx, dy);
-        
-        // Polar angle relative to batter facing down pitch
-        const fAngleDeg = Math.atan2(dx, isBottom ? -dy : dy) * (180 / Math.PI);
-        const diff = Math.abs(deg - fAngleDeg);
-
-        if (dist <= 215) { // Inside or patrolling 30-yard ring
-          if (diff < minFielderDiffRing) {
-            minFielderDiffRing = diff;
-            closestRingFielder = { dist, diff };
-          }
-        } else { // Boundary deep fielder
-          if (diff < minFielderDiffDeep) {
-            minFielderDiffDeep = diff;
-            closestDeepFielder = { dist, diff };
-          }
-        }
-      });
-
-      // 1. SINGLES SHADING (GREEN CORRIDORS IN RING)
-      // A single exists ONLY if there is no ring fielder within 14 degrees of this angle.
-      // Furthermore, shading does NOT bleed behind an existing ring fielder.
-      const ringBlocked = closestRingFielder && closestRingFielder.diff < 15;
-      if (isFrontOfWicket && !ringBlocked) {
-        // If there is a fielder slightly adjacent, truncate the single depth before their reach
-        let maxSingleRadius = 175;
-        if (closestRingFielder && closestRingFielder.diff < 24) {
-          maxSingleRadius = Math.min(maxSingleRadius, closestRingFielder.dist - 20);
-        }
-
-        if (maxSingleRadius > 85) {
-          ctx.beginPath();
-          ctx.moveTo(striker.x, striker.y);
-          const rad1 = (deg - stepDeg / 2) * (Math.PI / 180);
-          const rad2 = (deg + stepDeg / 2) * (Math.PI / 180);
-          const a1 = isBottom ? (Math.PI / 2 - rad1) : (-Math.PI / 2 + rad1);
-          const a2 = isBottom ? (Math.PI / 2 - rad2) : (-Math.PI / 2 + rad2);
-
-          ctx.arc(striker.x, striker.y, maxSingleRadius, a1, a2, !isBottom);
-          ctx.fillStyle = "rgba(0, 230, 118, 0.075)"; // Soft emerald single corridor
-          ctx.fill();
+    for (let theta = startAngle; theta < endAngle; theta += stepAngle) {
+      // Find the distance to boundary ellipse at this angle from striker
+      // Ray: (striker.x + r * cos, striker.y + r * sin) against ellipse (x-CX)^2/340^2 + (y-CY)^2/400^2 = 1
+      let maxBoundaryDist = 330;
+      for (let r = 80; r <= 380; r += 12) {
+        const testX = striker.x + r * Math.cos(theta);
+        const testY = striker.y + r * Math.sin(theta);
+        const norm = Math.pow((testX - CX) / 335, 2) + Math.pow((testY - CY) / 395, 2);
+        if (norm >= 1.0) {
+          maxBoundaryDist = r;
+          break;
         }
       }
 
-      // 2. DOUBLES / BOUNDARY SHADING (BLUE POCKETS IN DEEP)
-      // A deep boundary/double gap exists ONLY if there is no deep fielder covering this angle (within 24 deg)
-      const deepBlocked = closestDeepFielder && closestDeepFielder.diff < 25;
-      if (!deepBlocked) {
-        // Shading starts from outside the 30-yard ring out to boundary
-        const rInner = 215;
-        const rOuter = 335;
-        const rad1 = (deg - stepDeg / 2) * (Math.PI / 180);
-        const rad2 = (deg + stepDeg / 2) * (Math.PI / 180);
-        const a1 = isBottom ? (Math.PI / 2 - rad1) : (-Math.PI / 2 + rad1);
-        const a2 = isBottom ? (Math.PI / 2 - rad2) : (-Math.PI / 2 + rad2);
+      // Check if any fielder intersects or shadows this ray
+      let interceptDist = maxBoundaryDist;
+      let isShadowed = false;
 
+      for (let i = 0; i < fielders.length; i++) {
+        const f = fielders[i];
+        if (f.dist < 35) continue; // Skip keeper right behind stumps
+
+        // Angular difference between ray and fielder
+        let diff = Math.abs(theta - f.angle);
+        if (diff > Math.PI) diff = 2 * Math.PI - diff;
+
+        // Fielder reach width cone: 18px radius projected into angular reach
+        const angularReach = Math.asin(Math.min(22 / f.dist, 0.45));
+
+        if (diff <= angularReach) {
+          if (f.dist < interceptDist) {
+            interceptDist = f.dist;
+            isShadowed = true;
+          }
+        }
+      }
+
+      const cos = Math.cos(theta);
+      const sin = Math.sin(theta);
+      const halfStep = stepAngle / 2;
+
+      // 1. OPEN SCORING GAP (Runs clear to the fielder or all the way to boundary)
+      if (interceptDist > 55) {
         ctx.beginPath();
-        ctx.arc(striker.x, striker.y, rOuter, a1, a2, !isBottom);
-        ctx.arc(striker.x, striker.y, rInner, a2, a1, isBottom);
+        ctx.moveTo(striker.x + 40 * cos, striker.y + 40 * sin);
+        ctx.arc(striker.x, striker.y, interceptDist, theta - halfStep, theta + halfStep);
+        ctx.lineTo(striker.x, striker.y);
+        ctx.fillStyle = "rgba(255, 215, 0, 0.11)"; // Golden amber open scoring lane
+        ctx.fill();
+      }
+
+      // 2. FIELDER SHADOW (Extends from behind the fielder to boundary fence)
+      if (isShadowed && interceptDist < maxBoundaryDist) {
+        ctx.beginPath();
+        ctx.arc(striker.x, striker.y, maxBoundaryDist, theta - halfStep, theta + halfStep);
+        ctx.arc(striker.x, striker.y, interceptDist + 8, theta + halfStep, theta - halfStep, true);
         ctx.closePath();
-        ctx.fillStyle = "rgba(41, 121, 255, 0.08)"; // Vacant deep pocket
+        ctx.fillStyle = "rgba(10, 12, 16, 0.45)"; // Deep shadow cast behind fielder
         ctx.fill();
       }
     }
@@ -1455,7 +1451,7 @@
     const striker = getStrikerCoords();
     const isLHB = batterHand === 'LHB';
 
-    // Fielder-Aware Scoring Zones Heatmap
+    // Fielder Shadow & Scoring Corridors Overlay
     const showScoringZones = document.getElementById('toggleScoringZones').checked;
     if (showScoringZones) {
       drawScoringZones(striker);
@@ -2014,7 +2010,6 @@
       const targetY = creaseY + (pitchTarget.normY * pitchLength);
       const targetX = centerX + (pitchTarget.normX * (PW / 2 - 12) * offDir);
 
-      // Trajectory path from chosen bowler release origin
       pCtx.beginPath();
       pCtx.moveTo(bowlerReleaseX, bowlerCreaseY);
       pCtx.quadraticCurveTo(targetX, (bowlerCreaseY + targetY) / 2, targetX, targetY);
@@ -2024,7 +2019,6 @@
       pCtx.stroke();
       pCtx.setLineDash([]);
 
-      // Continuation path to stumps/keeper
       pCtx.beginPath();
       pCtx.moveTo(targetX, targetY);
       const dxTail = targetX - bowlerReleaseX;
@@ -2036,7 +2030,6 @@
       pCtx.stroke();
       pCtx.setLineDash([]);
 
-      // Target Rings
       pCtx.beginPath();
       pCtx.arc(targetX, targetY, 14, 0, Math.PI * 2);
       pCtx.strokeStyle = "rgba(255, 23, 68, 0.55)";
