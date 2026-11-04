@@ -1916,9 +1916,9 @@
     else if (normX <= 0.50) lineName = "Pads / Leg Stump";
     else lineName = "Down Leg Side";
 
-    const angleTag = bowlingAngle === 'left' ? "Left of Stumps" : "Right of Stumps";
-    return `${lengthName} • ${lineName} (${angleTag})`;
+    return `${lengthName} • ${lineName}`;
   }
+
 
   function drawPitchModal() {
     pCtx.clearRect(0, 0, pModalCanvas.width, pModalCanvas.height);
