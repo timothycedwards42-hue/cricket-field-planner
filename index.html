@@ -822,7 +822,7 @@
       <li><strong>🎯 Delivery Angle & Pitch View:</strong> Click <em>🎯 Pitch View</em> to set target length and line. Toggle between <em>Over the Wicket</em> and <em>Around the Wicket</em> to adjust the release trajectory. Lengths correctly measure forward from the batter's popping crease.</li>
       <li><strong>🟡 Fielder Shadow & Scoring Gaps:</strong> Toggle <em>Show Scoring Gaps</em> to visualize open boundary lanes. Fielders block scoring directly in front of them and cast realistic defense shadows all the way to the boundary fence.</li>
       <li><strong>Pitch Lengths & Lines:</strong> The shaded channels on the turf show the Off-Side Corridor of Uncertainty (amber), straight stumps (cyan), and leg side (rose), along with Full, Good, and Short length zones.</li>
-      <li><strong>Placing Fielders:</strong> Select a player in the right squad panel, then tap/click on the oval to drop their dot. Jersey numbers render inside each circle.</li>
+      <li><strong>Placing Fielders:</strong> Select a player in the right squad panel, then tap/click on the oval to drop their dot. Fielders cannot be placed or dragged beyond the boundary rope.</li>
       <li><strong>Movement & Shifts:</strong> Tap the field again with the same player active to place a secondary dot, then connect them using <em>➔ Arrow</em>.</li>
       <li><strong>Zen Mode:</strong> Click <em>📺 Zen Mode</em> (or press `F` or `Esc`) to hide all sidebars for clean presentation during team talks. Tap <em>✕ Exit Zen</em> to return.</li>
     </ul>
@@ -932,6 +932,31 @@
   const CY = 475;
   const PITCH_H = 150;
   const EXCLUSION_RADIUS_PX = 74;
+
+  // Boundary Ellipse Dimensions
+  const BOUNDARY_RADIUS_X = 340;
+  const BOUNDARY_RADIUS_Y = 400;
+
+  // Boundary Enforcers (Dot radius allowance = 10px)
+  function isInsideBoundary(x, y, margin = 10) {
+    const rx = BOUNDARY_RADIUS_X - margin;
+    const ry = BOUNDARY_RADIUS_Y - margin;
+    return (Math.pow((x - CX) / rx, 2) + Math.pow((y - CY) / ry, 2)) <= 1.0;
+  }
+
+  function clampToBoundary(x, y, margin = 10) {
+    const rx = BOUNDARY_RADIUS_X - margin;
+    const ry = BOUNDARY_RADIUS_Y - margin;
+    const norm = Math.pow((x - CX) / rx, 2) + Math.pow((y - CY) / ry, 2);
+    if (norm <= 1.0) {
+      return { x, y };
+    }
+    const scale = 1.0 / Math.sqrt(norm);
+    return {
+      x: CX + (x - CX) * scale,
+      y: CY + (y - CY) * scale
+    };
+  }
 
   // Segmented Control Handlers
   function setBatterHand(hand) {
@@ -1352,7 +1377,7 @@
     const nonStrikerCreaseY = isBottom ? (CY - pitchH / 2 + 20) : (CY + pitchH / 2 - 20);
     const dir = isBottom ? -1 : 1;
 
-    // Correctly measured forward from the striker crease
+    // Measured forward from striker crease
     const fullY = creaseY + (24 * dir);
     const goodY = creaseY + (48 * dir);
     const shortY = creaseY + (74 * dir);
@@ -1737,10 +1762,12 @@
     if (!isDragging || !draggedDot) return;
     if (e.cancelable) e.preventDefault();
 
-    const { x, y } = getCanvasCoordinates(e);
+    const coords = getCanvasCoordinates(e);
+    // Smoothly clamp dragged fielder to within boundary rope
+    const clamped = clampToBoundary(coords.x, coords.y, 10);
     dragMoved = true;
-    draggedDot.x = x;
-    draggedDot.y = y;
+    draggedDot.x = clamped.x;
+    draggedDot.y = clamped.y;
     drawCanvas();
   }
 
@@ -1782,6 +1809,11 @@
     const { x, y } = coords;
 
     if (currentMode === 'dot') {
+      // Reject any tap outside the playing boundary
+      if (!isInsideBoundary(x, y, 10)) {
+        return;
+      }
+
       const hitDot = elements.find(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= 26);
       if (!hitDot) {
         const p = roster[activePlayerIndex];
@@ -1851,7 +1883,7 @@
     } else if (currentMode === 'dot') {
       const { x, y } = getCanvasCoordinates(e);
       const hoveringDot = elements.some(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= 20);
-      canvas.style.cursor = hoveringDot ? 'grab' : 'crosshair';
+      canvas.style.cursor = hoveringDot ? 'grab' : (isInsideBoundary(x, y, 10) ? 'crosshair' : 'not-allowed');
     }
   });
   window.addEventListener('mouseup', handlePointerUp);
@@ -1928,8 +1960,7 @@
     const bowlerCreaseY = PY + PH - 38;
     const pitchLength = bowlerCreaseY - creaseY;
 
-    // LENGTHS MEASURED FORWARD FROM THE BATTER CREASE:
-    // Yorker/Full: 0 - 22% (0-4m), Good: 22 - 45% (4-7m), Short: 45 - 70% (7-10m), Bouncer: 70 - 100%
+    // Measured forward from batter crease
     const fullY = creaseY + (pitchLength * 0.22);
     const goodY = creaseY + (pitchLength * 0.45);
     const shortY = creaseY + (pitchLength * 0.70);
@@ -1980,7 +2011,7 @@
     pCtx.moveTo(PX - 12, bowlerCreaseY); pCtx.lineTo(PX + PW + 12, bowlerCreaseY);
     pCtx.stroke();
 
-    // Length Labels (Oriented from batter downward to bowler)
+    // Length Labels
     pCtx.font = "bold 9.5px -apple-system, sans-serif";
     pCtx.fillStyle = "rgba(255, 255, 255, 0.9)";
     pCtx.textAlign = offDir === -1 ? "right" : "left";
@@ -1996,9 +2027,9 @@
     pCtx.fillStyle = "#ff5252";
     pCtx.fillText(`BATTER CREASE (${isLHB ? 'LHB' : 'RHB'})`, centerX, creaseY - 22);
 
-    // Correct Bowler Release Stance:
-    // Over the Wicket = Bowler's right-hand side (Left on screen, -42px)
-    // Around the Wicket = Bowler's left-hand side (Right on screen, +42px)
+    // Bowler Release Stance:
+    // Over the Wicket = Left on screen (-42px)
+    // Around the Wicket = Right on screen (+42px)
     const releaseOffsetX = (bowlingAngle === 'around' ? 42 : -42);
     const bowlerReleaseX = centerX + releaseOffsetX;
 
@@ -2024,7 +2055,6 @@
       const targetY = creaseY + (pitchTarget.normY * pitchLength);
       const targetX = centerX + (pitchTarget.normX * (PW / 2 - 12) * offDir);
 
-      // Trajectory path from bowler release origin to target
       pCtx.beginPath();
       pCtx.moveTo(bowlerReleaseX, bowlerCreaseY);
       pCtx.quadraticCurveTo(targetX, (bowlerCreaseY + targetY) / 2, targetX, targetY);
@@ -2034,7 +2064,6 @@
       pCtx.stroke();
       pCtx.setLineDash([]);
 
-      // Continuation path to stumps/keeper
       pCtx.beginPath();
       pCtx.moveTo(targetX, targetY);
       const dxTail = targetX - bowlerReleaseX;
@@ -2046,7 +2075,6 @@
       pCtx.stroke();
       pCtx.setLineDash([]);
 
-      // Target Rings
       pCtx.beginPath();
       pCtx.arc(targetX, targetY, 14, 0, Math.PI * 2);
       pCtx.strokeStyle = "rgba(255, 23, 68, 0.55)";
