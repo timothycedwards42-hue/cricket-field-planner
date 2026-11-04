@@ -203,6 +203,30 @@
       padding: 8px;
     }
 
+    /* Floating Exit Zen Mode Button */
+    #exit-zen-btn {
+      display: none;
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 50;
+      background: rgba(239, 83, 80, 0.92);
+      backdrop-filter: blur(8px);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 7px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.55);
+      transition: all 0.15s;
+    }
+    #exit-zen-btn:hover {
+      background: #d32f2f;
+      transform: scale(1.04);
+    }
+
     /* Floating Tool Dock */
     #tool-dock {
       position: absolute;
@@ -369,7 +393,7 @@
       border-radius: 6px;
       border: 1px solid transparent;
       transition: all 0.15s;
-      opacity: 0.5; /* Dimmed until placed on turf */
+      opacity: 0.5;
     }
     .roster-card.on-field {
       opacity: 1.0;
@@ -435,7 +459,8 @@
     body.zen-mode #top-bar { display: none; }
     body.zen-mode #sidebar { display: none; }
     body.zen-mode #roster-sidebar { display: none; }
-    body.zen-mode #tool-dock { opacity: 0.2; transition: opacity 0.2s; }
+    body.zen-mode #exit-zen-btn { display: block; }
+    body.zen-mode #tool-dock { opacity: 0.25; transition: opacity 0.2s; }
     body.zen-mode #tool-dock:hover { opacity: 1; }
     body.zen-mode #workspace { height: 100vh; }
 
@@ -555,7 +580,7 @@
   </div>
 
   <div class="top-right-group">
-    <button class="btn-top" onclick="toggleZenMode()" title="Toggle Zen / Presentation Mode (Press 'F')">📺 Zen Mode</button>
+    <button class="btn-top" onclick="toggleZenMode()" title="Toggle Zen / Presentation Mode (Press 'F' or 'Esc')">📺 Zen Mode</button>
     <button class="btn-top" onclick="copyShareableLink()">🔗 Share</button>
     <button class="btn-top btn-top-primary" onclick="exportImage()">⬇ Export PNG</button>
     <button class="btn-top" onclick="openHelpModal()">📖</button>
@@ -604,6 +629,9 @@
   <!-- CENTER CANVAS VIEWPORT -->
   <div id="canvas-container">
     
+    <!-- Floating Exit Zen Mode Button -->
+    <button id="exit-zen-btn" onclick="toggleZenMode()" title="Exit Presentation Mode">✕ Exit Zen</button>
+
     <!-- Floating Tool Dock -->
     <div id="tool-dock">
       <button class="dock-btn active" id="btn-dot" onclick="setMode('dot')">● Fielder</button>
@@ -691,7 +719,7 @@
       <li><strong>Player Numbers:</strong> Each dot shows their squad jersey number (`1` to `14`) so setups stay readable even with names hidden.</li>
       <li><strong>Movement & Shifts:</strong> Tap the field again with the same player active to place a secondary dot, then connect them using <em>➔ Arrow</em>.</li>
       <li><strong>Add Free Text:</strong> Select <em>T Text</em>, then tap anywhere on the turf to type custom field notes.</li>
-      <li><strong>Zen Mode:</strong> Click <em>📺 Zen Mode</em> (or press `F` on your keyboard) to hide all sidebars for clean presentation during team talks.</li>
+      <li><strong>Zen Mode:</strong> Click <em>📺 Zen Mode</em> (or press `F` or `Esc`) to hide all sidebars for clean presentation during team talks. Tap <em>✕ Exit Zen</em> to return.</li>
       <li><strong>Live Quota HUD:</strong> The top-right glass badge audits Deep, Ring, and Slips in real-time and warns if a fielder breaches the 10m safety arc.</li>
     </ul>
     <div class="modal-actions">
@@ -738,15 +766,15 @@
     minOffsidePx: -15,      // Inner boundary next to Wicketkeeper
     firstSlipMaxDx: -42,    // 1st Slip: -15 to -42
     secondSlipMaxDx: -70,   // 2nd Slip: -42 to -70
-    gullyMaxDx: -100        // Gully: -70 to -100
+    gullyMaxDx: -90         // Gully: -70 to -90
   };
 
   const FIELDING_POSITION_CONFIG = [
     { minAngle: -180, maxAngle: -145, close: "Fly Slip",        ring: "Fly Slip",            deep: "Deep Third" },
     { minAngle: -145, maxAngle: -105, close: "Backward Point",  ring: "Backward Point",      deep: "Deep Bwd Point" },
-    { minAngle: -105, maxAngle: -70,  close: "Silly Point",           ring: "Point",               deep: "Deep Point" },
-    { minAngle: -70,  maxAngle: -40,  close: "Catching Cover",     ring: "Cover",               deep: "Deep Cover" },
-    { minAngle: -40,  maxAngle: -25,  close: "Catching Cover",     ring: "Extra Cover",         deep: "Deep Extra Cover" },
+    { minAngle: -105, maxAngle: -70,  close: "Silly Point",     ring: "Point",               deep: "Deep Point" },
+    { minAngle: -70,  maxAngle: -40,  close: "Catching Cover",  ring: "Cover",               deep: "Deep Cover" },
+    { minAngle: -40,  maxAngle: -25,  close: "Catching Cover",  ring: "Extra Cover",         deep: "Deep Extra Cover" },
     { minAngle: -25,  maxAngle: 0,    close: "Silly Mid-Off",   ring: "Mid-Off",             deep: "Long-Off" },
     { minAngle: 0,    maxAngle: 25,   close: "Silly Mid-On",    ring: "Mid-On",              deep: "Long-On" },
     { minAngle: 25,   maxAngle: 70,   close: "Short Mid-Wkt",   ring: "Mid-Wicket",          deep: "Deep Mid-Wkt" },
@@ -815,8 +843,13 @@
   function toggleZenMode() {
     document.body.classList.toggle('zen-mode');
   }
+
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'f' || e.key === 'F') {
+    if (e.key === 'Escape') {
+      if (document.body.classList.contains('zen-mode')) {
+        toggleZenMode();
+      }
+    } else if (e.key === 'f' || e.key === 'F') {
       if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
         toggleZenMode();
       }
@@ -1091,11 +1124,9 @@
   function drawFieldBase() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Deep Stadium Dark Background
     ctx.fillStyle = "#12141a";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Concentric Alternating Grass Bands for Broadcast Turf Depth
     for (let r = 400; r >= 100; r -= 60) {
       ctx.beginPath();
       ctx.ellipse(CX, CY, (r / 400) * 340, r, 0, 0, Math.PI * 2);
@@ -1103,14 +1134,12 @@
       ctx.fill();
     }
 
-    // Boundary Rope
     ctx.beginPath();
     ctx.ellipse(CX, CY, 340, 400, 0, 0, Math.PI * 2);
     ctx.lineWidth = 3.5;
     ctx.strokeStyle = "#e8f5e9";
     ctx.stroke();
 
-    // 30-Yard Circle
     ctx.beginPath();
     ctx.ellipse(CX, CY, 180, 210, 0, 0, Math.PI * 2);
     ctx.lineWidth = 1.8;
@@ -1119,7 +1148,6 @@
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Pitch Box
     const pitchW = 46;
     ctx.fillStyle = "#c7b088";
     ctx.fillRect(CX - pitchW / 2, CY - PITCH_H / 2, pitchW, PITCH_H);
@@ -1127,7 +1155,6 @@
     ctx.lineWidth = 1.5;
     ctx.strokeRect(CX - pitchW / 2, CY - PITCH_H / 2, pitchW, PITCH_H);
 
-    // Crease Lines
     const topCreaseY = CY - PITCH_H / 2 + 20;
     const botCreaseY = CY + PITCH_H / 2 - 20;
     ctx.strokeStyle = "#ffffff";
@@ -1139,7 +1166,6 @@
     ctx.lineTo(CX + pitchW/2, botCreaseY);
     ctx.stroke();
 
-    // Striker Stance Marker
     const striker = getStrikerCoords();
     const isLHB = batterHand === 'LHB';
     ctx.fillStyle = "#ff5252";
@@ -1164,7 +1190,6 @@
       ctx.fill();
     }
 
-    // 10m Junior Safety Exclusion Arc
     const showExclusion = document.getElementById('toggleExclusion').checked;
     if (showExclusion) {
       ctx.save();
@@ -1245,7 +1270,6 @@
         if (info.isSlipsGully) slipsCount++;
         if (info.isInside10m) safetyBreach = true;
 
-        // Fielder Dot with Number Inside
         ctx.beginPath();
         ctx.arc(el.x, el.y, 11, 0, Math.PI * 2);
         ctx.fillStyle = el.color;
@@ -1254,7 +1278,6 @@
         ctx.strokeStyle = info.isInside10m ? '#ff1744' : '#111111';
         ctx.stroke();
 
-        // Print Jersey Number inside dot
         ctx.save();
         ctx.fillStyle = "#111111";
         ctx.font = "bold 10px sans-serif";
@@ -1263,7 +1286,6 @@
         ctx.fillText(el.playerId, el.x, el.y);
         ctx.restore();
 
-        // Active Player Target Halo
         const activePlayer = roster[activePlayerIndex];
         if (activePlayer && el.playerId === activePlayer.id) {
           ctx.beginPath();
