@@ -770,7 +770,7 @@
     <div class="pitch-modal-header">
       <div>
         <h3>22-Yard Pitch & Bowling Plan</h3>
-        <span style="font-size: 0.72rem; color: var(--text-muted);">Tap anywhere on the pitch to set the planned bowling target</span>
+        <span style="font-size: 0.72rem; color: var(--text-muted);">Tap on pitch to set bowling impact target</span>
       </div>
       <button class="btn-top" onclick="closePitchModal()">✕</button>
     </div>
@@ -779,8 +779,8 @@
     <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
       <span style="font-size: 0.75rem; font-weight: 700; color: #cfd8dc;">DELIVERY ANGLE:</span>
       <div class="segmented-control" style="width: 280px;">
-        <button class="segment-btn active" id="btn-over-wkt" onclick="setBowlingAngle('over')">Over Wicket (Rt)</button>
-        <button class="segment-btn" id="btn-around-wkt" onclick="setBowlingAngle('around')">Around Wicket (Lt)</button>
+        <button class="segment-btn active" id="btn-over-wkt" onclick="setBowlingAngle('over')">Over the Wicket</button>
+        <button class="segment-btn" id="btn-around-wkt" onclick="setBowlingAngle('around')">Around the Wicket</button>
       </div>
     </div>
 
@@ -819,7 +819,7 @@
   <div class="modal-card" style="max-width: 500px; max-height: 85vh; overflow-y: auto;">
     <h3 style="color: #a5d6a7; font-size: 1.05rem;">Tactics Builder Guide</h3>
     <ul style="font-size: 0.8rem; line-height: 1.6; padding-left: 18px; color: #ddd; display: flex; flex-direction: column; gap: 6px;">
-      <li><strong>🎯 Delivery Angle & Pitch View:</strong> Click <em>🎯 Pitch View</em> to set target length and line. Toggle between <em>Over the Wicket</em> (right of stumps) and <em>Around the Wicket</em> (left of stumps) to adjust the release trajectory.</li>
+      <li><strong>🎯 Delivery Angle & Pitch View:</strong> Click <em>🎯 Pitch View</em> to set target length and line. Toggle between <em>Over the Wicket</em> and <em>Around the Wicket</em> to adjust the release trajectory. Lengths correctly measure forward from the batter's popping crease.</li>
       <li><strong>🟡 Fielder Shadow & Scoring Gaps:</strong> Toggle <em>Show Scoring Gaps</em> to visualize open boundary lanes. Fielders block scoring directly in front of them and cast realistic defense shadows all the way to the boundary fence.</li>
       <li><strong>Pitch Lengths & Lines:</strong> The shaded channels on the turf show the Off-Side Corridor of Uncertainty (amber), straight stumps (cyan), and leg side (rose), along with Full, Good, and Short length zones.</li>
       <li><strong>Placing Fielders:</strong> Select a player in the right squad panel, then tap/click on the oval to drop their dot. Jersey numbers render inside each circle.</li>
@@ -902,7 +902,7 @@
   let batterHand = 'RHB';
   let strikerEnd = 'top';
 
-  // Bowling Angle in Pitch Pop-out ('over' = right of stumps, 'around' = left of stumps)
+  // Bowling Angle in Pitch Pop-out ('over' vs 'around')
   let bowlingAngle = 'over';
 
   // Planned pitch target (relative coordinates: normalized x [-1 to 1], y [0 to 1 from striker crease])
@@ -1001,15 +1001,18 @@
 
   function getAutoPositions() {
     const striker = getStrikerCoords();
+    // Over the wicket = Right-hand side of bowler (Left of stumps from batter view)
+    const releaseShift = (bowlingAngle === 'around') ? 22 : -22;
+
     if (!striker.isBottom) {
       return {
         keeper: { x: CX, y: striker.y - 48 },
-        bowler: { x: CX + (bowlingAngle === 'around' ? -20 : 20), y: CY + PITCH_H / 2 + 8 }
+        bowler: { x: CX + releaseShift, y: CY + PITCH_H / 2 + 8 }
       };
     } else {
       return {
         keeper: { x: CX, y: striker.y + 48 },
-        bowler: { x: CX + (bowlingAngle === 'around' ? 20 : -20), y: CY - PITCH_H / 2 - 8 }
+        bowler: { x: CX - releaseShift, y: CY - PITCH_H / 2 - 8 }
       };
     }
   }
@@ -1244,18 +1247,17 @@
     return "Fielder";
   }
 
-    // --- FIELD-AWARE SCORING CORRIDORS & SHADOW CASTING (SEAMLESS 360°) ---
+  // --- FIELD-AWARE SCORING CORRIDORS & SHADOW CASTING (SEAMLESS 360°) ---
   function drawScoringZones(striker) {
     ctx.save();
 
-    // 1. Clip strictly within the boundary rope so no rays spill onto the grass margins
+    // Clip strictly within the boundary rope so no rays spill onto the grass margins
     ctx.beginPath();
     ctx.ellipse(CX, CY, 338, 398, 0, 0, Math.PI * 2);
     ctx.clip();
 
     const fDots = elements.filter(el => el.type === 'dot');
 
-    // Precalculate fielders relative to striker
     const fielders = fDots.map(f => {
       const dx = f.x - striker.x;
       const dy = f.y - striker.y;
@@ -1271,25 +1273,23 @@
         dx, 
         dy, 
         dist, 
-        // Bowler has tighter deflection reach; fielders have full diving reach
         reach: isBowler ? 9 : 20 
       };
     });
 
-    const stepAngle = (1.5 * Math.PI) / 180; // 1.5 degree slice
+    const stepAngle = (1.5 * Math.PI) / 180;
     const halfStep = stepAngle / 2;
-    const a = 338; // Ellipse X-radius
-    const b = 398; // Ellipse Y-radius
+    const a = 338;
+    const b = 398;
     const ox = striker.x - CX;
     const oy = striker.y - CY;
 
-    // Sweep full 360 degrees
+    // Full 360-degree sweep
     for (let theta = -Math.PI; theta < Math.PI; theta += stepAngle) {
       const cos = Math.cos(theta);
       const sin = Math.sin(theta);
 
-      // 2. Exact mathematical intersection with boundary ellipse:
-      // ((ox + r*cos)/a)^2 + ((oy + r*sin)/b)^2 = 1 -> A*r^2 + 2*B*r + C = 0
+      // Analytical boundary intersection
       const A = (cos * cos) / (a * a) + (sin * sin) / (b * b);
       const B = (ox * cos) / (a * a) + (oy * sin) / (b * b);
       const C_val = (ox * ox) / (a * a) + (oy * oy) / (b * b) - 1;
@@ -1301,18 +1301,15 @@
         if (rSol > 0) maxBoundaryDist = rSol;
       }
 
-      // 3. Ray-to-fielder intersection check
       let interceptDist = maxBoundaryDist;
       let isShadowed = false;
 
       for (let i = 0; i < fielders.length; i++) {
         const f = fielders[i];
-        if (f.dist < 32) continue; // Ignore wicketkeeper tucked behind stumps
+        if (f.dist < 32) continue; // Ignore keeper immediately adjacent to stumps
 
-        // Projection along ray
         const proj = f.dx * cos + f.dy * sin;
         if (proj > 25 && proj < interceptDist) {
-          // Perpendicular distance from ray to fielder center
           const perp = Math.abs(-f.dx * sin + f.dy * cos);
           if (perp <= f.reach) {
             interceptDist = proj;
@@ -1321,7 +1318,7 @@
         }
       }
 
-      // 4. Open Scoring Lane (Amber/Gold corridor up to fielder or boundary fence)
+      // Open scoring lane
       if (interceptDist > 30) {
         ctx.beginPath();
         ctx.moveTo(striker.x + 20 * cos, striker.y + 20 * sin);
@@ -1331,7 +1328,7 @@
         ctx.fill();
       }
 
-      // 5. Fielder Coverage Shadow (From behind fielder to the rope)
+      // Fielder shadow
       if (isShadowed && interceptDist < maxBoundaryDist) {
         ctx.beginPath();
         ctx.arc(striker.x, striker.y, maxBoundaryDist, theta - halfStep, theta + halfStep);
@@ -1345,8 +1342,6 @@
     ctx.restore();
   }
 
-
-
   // Draw Pitch Lengths & Lateral Bowling Lines on Ground Canvas
   function drawPitchZones(pitchLeft, pitchTop, pitchW, pitchH, striker) {
     ctx.save();
@@ -1357,6 +1352,7 @@
     const nonStrikerCreaseY = isBottom ? (CY - pitchH / 2 + 20) : (CY + pitchH / 2 - 20);
     const dir = isBottom ? -1 : 1;
 
+    // Correctly measured forward from the striker crease
     const fullY = creaseY + (24 * dir);
     const goodY = creaseY + (48 * dir);
     const shortY = creaseY + (74 * dir);
@@ -1409,8 +1405,9 @@
       const targetScreenY = creaseY + (pitchTarget.normY * 110 * dir);
       const targetScreenX = CX + (pitchTarget.normX * (pitchW / 2 - 4) * (offDir === -1 ? 1 : -1));
 
-      // Bowler release origin shifted for Over vs Around the Wicket
-      const bowlerReleaseX = CX + ((bowlingAngle === 'around' ? -1 : 1) * 14 * (isBottom ? -1 : 1));
+      // Over the wicket = Right-hand side of bowler (Left of stumps from batter view)
+      const releaseShift = (bowlingAngle === 'around') ? 20 : -20;
+      const bowlerReleaseX = CX + (releaseShift * (isBottom ? -1 : 1));
 
       // Trajectory Line from Bowler Crease
       ctx.beginPath();
@@ -1889,11 +1886,12 @@
   }
 
   function evaluatePitchLocation(normX, normY) {
+    // normY: 0 (at popping crease) to 1 (at bowler release crease)
     let lengthName = "Good Length";
-    if (normY < 0.22) lengthName = "Full / Yorker";
+    if (normY < 0.22) lengthName = "Yorker / Full";
     else if (normY < 0.45) lengthName = "Good Length";
-    else if (normY < 0.70) lengthName = "Short of a Length";
-    else lengthName = "Bouncer / Dug In";
+    else if (normY < 0.70) lengthName = "Back of Length";
+    else lengthName = "Short / Bouncer";
 
     let lineName = "On the Stumps";
     if (normX < -0.45) lineName = "Wide Outside Off";
@@ -1930,7 +1928,8 @@
     const bowlerCreaseY = PY + PH - 38;
     const pitchLength = bowlerCreaseY - creaseY;
 
-    // Length thresholds
+    // LENGTHS MEASURED FORWARD FROM THE BATTER CREASE:
+    // Yorker/Full: 0 - 22% (0-4m), Good: 22 - 45% (4-7m), Short: 45 - 70% (7-10m), Bouncer: 70 - 100%
     const fullY = creaseY + (pitchLength * 0.22);
     const goodY = creaseY + (pitchLength * 0.45);
     const shortY = creaseY + (pitchLength * 0.70);
@@ -1981,7 +1980,7 @@
     pCtx.moveTo(PX - 12, bowlerCreaseY); pCtx.lineTo(PX + PW + 12, bowlerCreaseY);
     pCtx.stroke();
 
-    // Length Labels
+    // Length Labels (Oriented from batter downward to bowler)
     pCtx.font = "bold 9.5px -apple-system, sans-serif";
     pCtx.fillStyle = "rgba(255, 255, 255, 0.9)";
     pCtx.textAlign = offDir === -1 ? "right" : "left";
@@ -1997,15 +1996,16 @@
     pCtx.fillStyle = "#ff5252";
     pCtx.fillText(`BATTER CREASE (${isLHB ? 'LHB' : 'RHB'})`, centerX, creaseY - 22);
 
-    // Delivery Angle Origin:
-    // Over the Wicket = Right of Stumps (+42px); Around the Wicket = Left of Stumps (-42px)
-    const releaseOffsetX = (bowlingAngle === 'around' ? -42 : 42);
+    // Correct Bowler Release Stance:
+    // Over the Wicket = Bowler's right-hand side (Left on screen, -42px)
+    // Around the Wicket = Bowler's left-hand side (Right on screen, +42px)
+    const releaseOffsetX = (bowlingAngle === 'around' ? 42 : -42);
     const bowlerReleaseX = centerX + releaseOffsetX;
 
     pCtx.fillStyle = "#81c784";
-    pCtx.fillText(`BOWLER RELEASE: ${bowlingAngle === 'around' ? 'AROUND WICKET (LT)' : 'OVER WICKET (RT)'}`, centerX, bowlerCreaseY + 30);
+    pCtx.fillText(`BOWLER RELEASE: ${bowlingAngle === 'around' ? 'AROUND THE WICKET' : 'OVER THE WICKET'}`, centerX, bowlerCreaseY + 30);
 
-    // Draw Bowler Release Stance Marker
+    // Bowler Release Stance Marker
     pCtx.beginPath();
     pCtx.arc(bowlerReleaseX, bowlerCreaseY, 6, 0, Math.PI * 2);
     pCtx.fillStyle = "#81c784";
@@ -2024,6 +2024,7 @@
       const targetY = creaseY + (pitchTarget.normY * pitchLength);
       const targetX = centerX + (pitchTarget.normX * (PW / 2 - 12) * offDir);
 
+      // Trajectory path from bowler release origin to target
       pCtx.beginPath();
       pCtx.moveTo(bowlerReleaseX, bowlerCreaseY);
       pCtx.quadraticCurveTo(targetX, (bowlerCreaseY + targetY) / 2, targetX, targetY);
@@ -2033,6 +2034,7 @@
       pCtx.stroke();
       pCtx.setLineDash([]);
 
+      // Continuation path to stumps/keeper
       pCtx.beginPath();
       pCtx.moveTo(targetX, targetY);
       const dxTail = targetX - bowlerReleaseX;
@@ -2044,6 +2046,7 @@
       pCtx.stroke();
       pCtx.setLineDash([]);
 
+      // Target Rings
       pCtx.beginPath();
       pCtx.arc(targetX, targetY, 14, 0, Math.PI * 2);
       pCtx.strokeStyle = "rgba(255, 23, 68, 0.55)";
