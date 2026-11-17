@@ -77,10 +77,16 @@
       gap: 6px;
       background: var(--bg);
       border: 1px solid var(--border);
-      padding: 4px 10px;
+      padding: 5px 12px;
       border-radius: 20px;
       font-size: 0.75rem;
+      font-weight: 600;
       cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .cloud-pill:hover {
+      border-color: var(--accent-bright);
+      background: var(--surface-elevated);
     }
     .cloud-dot {
       width: 8px;
@@ -144,7 +150,7 @@
       gap: 16px;
       overflow-y: auto;
       z-index: 25;
-      transition: transform 0.25s ease;
+      transition: transform 0.25s ease, left 0.25s ease;
     }
     .section-title {
       font-size: 0.72rem;
@@ -375,7 +381,7 @@
       gap: 8px;
       z-index: 25;
       height: 100%;
-      transition: transform 0.25s ease;
+      transition: transform 0.25s ease, right 0.25s ease;
     }
     .roster-header-pinned {
       display: flex;
@@ -383,6 +389,18 @@
       gap: 6px;
       padding-bottom: 8px;
       border-bottom: 1px solid var(--border);
+    }
+    #squadListSelect {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 0.78rem;
+      outline: none;
+    }
+    #squadListSelect:focus {
+      border-color: var(--accent-bright);
     }
     #roster-list {
       display: flex;
@@ -529,6 +547,7 @@
       position: fixed;
       top: 0; left: 0; width: 100vw; height: 100vh;
       background: rgba(0, 0, 0, 0.78);
+      backdrop-filter: blur(4px);
       z-index: 1000;
       justify-content: center;
       align-items: center;
@@ -545,21 +564,65 @@
       flex-direction: column;
       gap: 12px;
     }
-    .modal-card textarea {
+    .modal-card textarea, .modal-card input[type="text"] {
       background: var(--bg);
       border: 1px solid var(--border);
       padding: 10px;
       border-radius: 6px;
       color: white;
-      resize: vertical;
-      min-height: 120px;
       font-family: inherit;
       font-size: 0.85rem;
+      width: 100%;
+    }
+    .modal-card textarea {
+      resize: vertical;
+      min-height: 120px;
     }
     .modal-actions {
       display: flex;
       justify-content: flex-end;
       gap: 8px;
+    }
+
+    /* Database Team Browser List */
+    #db-team-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 4px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .db-team-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: var(--surface-elevated);
+      border: 1px solid transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .db-team-item:hover {
+      border-color: var(--accent-bright);
+      background: #28303d;
+    }
+    .db-team-item.active-team {
+      border-color: var(--accent-bright);
+      background: #1c2b20;
+    }
+    .db-team-code {
+      font-weight: 700;
+      font-size: 0.88rem;
+      color: #fff;
+    }
+    .db-team-meta {
+      font-size: 0.72rem;
+      color: var(--text-muted);
     }
 
     /* Mobile Drawer Toggle Bar */
@@ -632,9 +695,10 @@
 <div id="top-bar">
   <div class="top-left-group">
     <input type="text" id="diagTitle" value="Match Field Plan" oninput="drawCanvas()" title="Click to rename diagram">
-    <div class="cloud-pill" onclick="promptTeamCode()" title="Click to configure Cloud Sync">
+    <div class="cloud-pill" onclick="openCloudModal()" title="Click to browse saved database teams or configure Cloud Sync">
       <div id="syncDot" class="cloud-dot"></div>
       <span id="syncText">Sync: Off</span>
+      <span style="font-size: 0.65rem; color: var(--text-muted);">▼</span>
     </div>
   </div>
 
@@ -742,12 +806,16 @@
     <div class="roster-header-pinned">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <span class="section-title">Squad Roster (14)</span>
-        <button class="btn-top" style="padding: 2px 8px; font-size: 0.72rem;" onclick="openSquadManagerModal()">📝 Paste List</button>
+        <div style="display: flex; gap: 4px;">
+          <button class="btn-top" style="padding: 2px 7px; font-size: 0.72rem;" onclick="openCloudModal()" title="Browse all teams in database">☁️ DB Teams</button>
+          <button class="btn-top" style="padding: 2px 7px; font-size: 0.72rem;" onclick="openSquadManagerModal()">📝 Paste</button>
+        </div>
       </div>
       <div style="display: flex; gap: 6px;">
         <select id="squadListSelect" style="flex: 1;" onchange="loadSelectedSquadList()">
           <option value="">-- Saved Teams --</option>
         </select>
+        <button class="btn-top" style="padding: 4px 8px;" onclick="FetchAllDatabaseTeamsAndSquads()" title="Refresh teams from database">↻</button>
         <button class="btn-top" style="padding: 4px 8px;" onclick="saveCurrentSquadList()" title="Save roster">💾</button>
         <button class="btn-top" style="padding: 4px 8px;" onclick="deleteSelectedSquadList()" title="Delete roster">🗑</button>
       </div>
@@ -763,6 +831,38 @@
 <div class="mobile-tab-bar">
   <button class="mobile-tab-btn" onclick="toggleDrawer('sidebar')">⚙️ Match Settings</button>
   <button class="mobile-tab-btn" onclick="toggleDrawer('roster-sidebar')">👥 Squad (14)</button>
+</div>
+
+<!-- CLOUD TEAM BROWSER & SYNC MODAL -->
+<div id="cloud-modal-overlay" class="modal-overlay">
+  <div class="modal-card" style="max-width: 460px;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="color: #a5d6a7; font-size: 1.05rem;">☁️ Database Teams & Cloud Sync</h3>
+      <button class="btn-top" onclick="closeCloudModal()">✕</button>
+    </div>
+    <p style="font-size: 0.78rem; color: var(--text-muted);">
+      Select an existing team saved in the database to load its roster and field scenarios, or enter a new Team Code below.
+    </p>
+
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span class="section-title">Available Teams in Database</span>
+      <button class="btn-top" style="padding: 2px 8px; font-size: 0.7rem;" onclick="fetchDatabaseTeamsList()">↻ Refresh List</button>
+    </div>
+
+    <div id="db-team-list">
+      <div style="padding: 12px; font-size: 0.8rem; color: var(--text-muted); text-align: center;">Loading teams from database...</div>
+    </div>
+
+    <div class="section-title" style="margin-top: 4px;">Connect or Create Team Code</div>
+    <div style="display: flex; gap: 8px;">
+      <input type="text" id="customTeamCodeInput" placeholder="e.g. U13REPS, MOSMAN1" style="text-transform: uppercase;">
+      <button class="btn-top btn-top-primary" style="white-space: nowrap;" onclick="connectFromModalInput()">Connect</button>
+    </div>
+
+    <div class="modal-actions" style="margin-top: 4px;">
+      <button type="button" class="btn-top" onclick="closeCloudModal()">Close</button>
+    </div>
+  </div>
 </div>
 
 <!-- PITCH ZOOM & BOWLING TARGET MODAL -->
@@ -820,11 +920,12 @@
   <div class="modal-card" style="max-width: 500px; max-height: 85vh; overflow-y: auto;">
     <h3 style="color: #a5d6a7; font-size: 1.05rem;">Tactics Builder Guide</h3>
     <ul style="font-size: 0.8rem; line-height: 1.6; padding-left: 18px; color: #ddd; display: flex; flex-direction: column; gap: 6px;">
-      <li><strong>🎯 Delivery Angle & Pitch View:</strong> Click <em>🎯 Pitch View</em> to set target length and line. Toggle between <em>Left of Stumps</em> and <em>Right of Stumps</em> to set release position. Outside Off (4th Stump) is situated on the left of the pitch.</li>
-      <li><strong>🟡 Fielder Shadow & Scoring Gaps:</strong> Toggle <em>Show Scoring Gaps</em> to visualize open boundary lanes. Fielders block scoring directly in front of them and cast realistic defense shadows all the way to the boundary fence.</li>
+      <li><strong>☁️ Database Team Selector:</strong> Click the <em>Sync</em> pill in the top bar or <em>☁️ DB Teams</em> above the roster to pull a live list of all teams stored in the database and switch between them.</li>
+      <li><strong>🎯 Delivery Angle & Pitch View:</strong> Click <em>🎯 Pitch View</em> to set target length and line. Toggle between <em>Left of Stumps</em> and <em>Right of Stumps</em> to set release position.</li>
+      <li><strong>🟡 Fielder Shadow & Scoring Gaps:</strong> Toggle <em>Show Scoring Gaps</em> to visualize open boundary lanes. Fielders block scoring directly in front of them and cast defense shadows out to the boundary fence.</li>
       <li><strong>Pitch Lengths & Lines:</strong> The shaded channels on the turf show the Off-Side Corridor of Uncertainty (amber), straight stumps (cyan), and leg side (rose), along with Full, Good, and Short length zones.</li>
       <li><strong>Placing Fielders:</strong> Select a player in the right squad panel, then tap/click on the oval to drop their dot. Fielders cannot be placed or dragged beyond the boundary rope.</li>
-      <li><strong>Zen Mode:</strong> Click <em>📺 Zen Mode</em> (or press `F` or `Esc`) to hide all sidebars for clean presentation during team talks. Tap <em>✕ Exit Zen</em> to return.</li>
+      <li><strong>Zen Mode:</strong> Click <em>📺 Zen Mode</em> (or press `F` or `Esc`) to hide all sidebars for clean presentation during team talks.</li>
     </ul>
     <div class="modal-actions">
       <button type="button" class="btn-top btn-top-primary" onclick="closeHelpModal()">Got It</button>
@@ -860,6 +961,7 @@
   }
 
   let activeTeamCode = localStorage.getItem('cricket_active_team_code') || '';
+  let remoteTeamsCache = {}; // Stores { TEAM_CODE: { data, updated_at } }
 
   // ==========================================
   // --- CONFIGURABLE FIELDING & CORDON RULES ---
@@ -874,17 +976,17 @@
   };
 
   const FIELDING_POSITION_CONFIG = [
-    { minAngle: -180, maxAngle: -145, close: "Fly Slip",        ring: "Fly Slip",            deep: "Deep Third" },
-    { minAngle: -145, maxAngle: -105, close: "Backward Point",  ring: "Backward Point",      deep: "Deep Bwd Point" },
-    { minAngle: -105, maxAngle: -70,  close: "Silly Point",     ring: "Point",               deep: "Deep Point" },
-    { minAngle: -70,  maxAngle: -40,  close: "Catching Cover",  ring: "Cover",               deep: "Deep Cover" },
-    { minAngle: -40,  maxAngle: -25,  close: "Catching Cover",  ring: "Extra Cover",         deep: "Deep Extra Cover" },
-    { minAngle: -25,  maxAngle: 0,    close: "Silly Mid-Off",   ring: "Mid-Off",             deep: "Long-Off" },
-    { minAngle: 0,    maxAngle: 25,   close: "Silly Mid-On",    ring: "Mid-On",              deep: "Long-On" },
-    { minAngle: 25,   maxAngle: 70,   close: "Short Mid-Wkt",   ring: "Mid-Wicket",          deep: "Deep Mid-Wkt" },
-    { minAngle: 70,   maxAngle: 115,  close: "Short Leg",       ring: "Square Leg",          deep: "Deep Sq Leg" },
-    { minAngle: 115,  maxAngle: 155,  close: "Leg Slip",        ring: "Bwd Square Leg",      deep: "Deep Bwd Sq" },
-    { minAngle: 155,  maxAngle: 180,  close: "Leg Slip",        ring: "Fine Leg",            deep: "Deep Fine Leg" }
+    { minAngle: -180, maxAngle: -145, close: "Fly Slip",        ring: "Fly Slip",           deep: "Deep Third" },
+    { minAngle: -145, maxAngle: -105, close: "Backward Point",  ring: "Backward Point",     deep: "Deep Bwd Point" },
+    { minAngle: -105, maxAngle: -70,  close: "Silly Point",     ring: "Point",              deep: "Deep Point" },
+    { minAngle: -70,  maxAngle: -40,  close: "Catching Cover",  ring: "Cover",              deep: "Deep Cover" },
+    { minAngle: -40,  maxAngle: -25,  close: "Catching Cover",  ring: "Extra Cover",        deep: "Deep Extra Cover" },
+    { minAngle: -25,  maxAngle: 0,    close: "Silly Mid-Off",   ring: "Mid-Off",            deep: "Long-Off" },
+    { minAngle: 0,    maxAngle: 25,   close: "Silly Mid-On",    ring: "Mid-On",             deep: "Long-On" },
+    { minAngle: 25,   maxAngle: 70,   close: "Short Mid-Wkt",   ring: "Mid-Wicket",         deep: "Deep Mid-Wkt" },
+    { minAngle: 70,   maxAngle: 115,  close: "Short Leg",       ring: "Square Leg",         deep: "Deep Sq Leg" },
+    { minAngle: 115,  maxAngle: 155,  close: "Leg Slip",        ring: "Bwd Square Leg",     deep: "Deep Bwd Sq" },
+    { minAngle: 155,  maxAngle: 180,  close: "Leg Slip",        ring: "Fine Leg",           deep: "Deep Fine Leg" }
   ];
 
   const DISTANCE_CONFIG = {
@@ -901,11 +1003,7 @@
   let elements = [];
   let batterHand = 'RHB';
   let strikerEnd = 'top';
-
-  // Bowling Angle in Pitch Pop-out ('left' vs 'right' of stumps)
   let bowlingAngle = 'right';
-
-  // Planned pitch target (relative coordinates: normalized x [-1 to 1], y [0 to 1 from striker crease])
   let pitchTarget = null; // { normX, normY, label }
 
   const DEFAULT_COLORS = [
@@ -933,7 +1031,6 @@
   const PITCH_H = 150;
   const EXCLUSION_RADIUS_PX = 74;
 
-  // Boundary Ellipse Dimensions
   const BOUNDARY_RADIUS_X = 340;
   const BOUNDARY_RADIUS_Y = 400;
 
@@ -957,32 +1054,46 @@
     };
   }
 
-  // Segmented Control Handlers
-  function setBatterHand(hand) {
+  function getContrastTextColor(hexColor) {
+    if (!hexColor || !hexColor.startsWith('#') || hexColor.length < 7) return '#111111';
+    const r = parseInt(hexColor.slice(1, 3), 16);
+    const g = parseInt(hexColor.slice(3, 5), 16);
+    const b = parseInt(hexColor.slice(5, 7), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.55 ? '#111111' : '#ffffff';
+  }
+
+  // Segmented Control Handlers (with optional skipSync for batch loads)
+  function setBatterHand(hand, skipSync = false) {
     batterHand = hand;
     document.getElementById('btn-rhb').classList.toggle('active', hand === 'RHB');
     document.getElementById('btn-lhb').classList.toggle('active', hand === 'LHB');
+    if (pitchTarget) {
+      pitchTarget.label = evaluatePitchLocation(pitchTarget.normX, pitchTarget.normY);
+      document.getElementById('pitchTargetText').textContent = pitchTarget.label;
+    }
     drawCanvas();
     drawPitchModal();
-    pushToCloud();
+    if (!skipSync) pushToCloud();
   }
 
-  function setBowlingEnd(end) {
+  function setBowlingEnd(end, skipSync = false) {
     strikerEnd = end;
     document.getElementById('btn-end-north').classList.toggle('active', end === 'top');
     document.getElementById('btn-end-south').classList.toggle('active', end === 'bottom');
     updatePitchEnds();
     drawPitchModal();
-    pushToCloud();
+    if (!skipSync) pushToCloud();
   }
 
-  function setBowlingAngle(angle) {
+  function setBowlingAngle(angle, skipSync = false) {
     bowlingAngle = angle;
     document.getElementById('btn-bowler-left').classList.toggle('active', angle === 'left');
     document.getElementById('btn-bowler-right').classList.toggle('active', angle === 'right');
+    updatePitchEnds();
     drawPitchModal();
     drawCanvas();
-    pushToCloud();
+    if (!skipSync) pushToCloud();
   }
 
   function toggleZenMode() {
@@ -993,6 +1104,8 @@
     if (e.key === 'Escape') {
       if (document.getElementById('pitch-modal-overlay').style.display === 'flex') {
         closePitchModal();
+      } else if (document.getElementById('cloud-modal-overlay').style.display === 'flex') {
+        closeCloudModal();
       } else if (document.body.classList.contains('zen-mode')) {
         toggleZenMode();
       }
@@ -1025,7 +1138,6 @@
 
   function getAutoPositions() {
     const striker = getStrikerCoords();
-    // Left of stumps = -20px; Right of stumps = +20px
     const releaseShift = (bowlingAngle === 'left') ? -20 : 20;
 
     if (!striker.isBottom) {
@@ -1260,6 +1372,7 @@
                     Math.pow((y - CY) / DISTANCE_CONFIG.ringEllipseY, 2)) > 1.0;
 
     let theta = Math.atan2(dx, dy) * (180 / Math.PI);
+    if (theta === 180) theta = -180;
 
     const sector = FIELDING_POSITION_CONFIG.find(s => theta >= s.minAngle && theta < s.maxAngle);
     if (sector) {
@@ -1271,7 +1384,7 @@
     return "Fielder";
   }
 
-  // --- FIELD-AWARE SCORING CORRIDORS & SHADOW CASTING (SEAMLESS 360°) ---
+  // --- FIELD-AWARE SCORING CORRIDORS & SHADOW CASTING ---
   function drawScoringZones(striker) {
     ctx.save();
 
@@ -1370,7 +1483,6 @@
     const nonStrikerCreaseY = isBottom ? (CY - pitchH / 2 + 20) : (CY + pitchH / 2 - 20);
     const dir = isBottom ? -1 : 1;
 
-    // Measured forward from striker crease
     const fullY = creaseY + (24 * dir);
     const goodY = creaseY + (48 * dir);
     const shortY = creaseY + (74 * dir);
@@ -1379,7 +1491,6 @@
     const offChannelW = 13;
     const legChannelW = 12;
 
-    // Left of pitch on ground: RHB off-side = Left (-1), LHB off-side = Right (+1)
     let offDir = (!isBottom) ? (isLHB ? 1 : -1) : (isLHB ? -1 : 1);
     const yMin = Math.min(creaseY, nonStrikerCreaseY);
     const yLength = Math.abs(nonStrikerCreaseY - creaseY);
@@ -1418,12 +1529,12 @@
 
     if (pitchTarget) {
       const targetScreenY = creaseY + (pitchTarget.normY * 110 * dir);
-      // normX < 0 is Left of screen
-      const targetScreenX = CX + (pitchTarget.normX * (pitchW / 2 - 4) * (offDir === -1 ? -1 : 1));
+      // In Pitch Modal, normX < 0 is Left (North End RHB Off-side). Flip horizontally only when bowling from South End.
+      const endFlip = isBottom ? -1 : 1;
+      const targetScreenX = CX + (pitchTarget.normX * (pitchW / 2 - 4) * endFlip);
 
-      // Left of stumps = -20px; Right of stumps = +20px
       const releaseShift = (bowlingAngle === 'left') ? -20 : 20;
-      const bowlerReleaseX = CX + (releaseShift * (isBottom ? -1 : 1));
+      const bowlerReleaseX = CX + (releaseShift * endFlip);
 
       ctx.beginPath();
       ctx.moveTo(bowlerReleaseX, nonStrikerCreaseY);
@@ -1617,7 +1728,7 @@
         ctx.stroke();
 
         ctx.save();
-        ctx.fillStyle = "#111111";
+        ctx.fillStyle = getContrastTextColor(el.color);
         ctx.font = "bold 10px sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -1901,24 +2012,24 @@
   }
 
   function evaluatePitchLocation(normX, normY) {
-    // normY: 0 (at popping crease) to 1 (at bowler release crease)
     let lengthName = "Good Length";
     if (normY < 0.22) lengthName = "Yorker / Full";
     else if (normY < 0.45) lengthName = "Good Length";
     else if (normY < 0.70) lengthName = "Back of Length";
     else lengthName = "Short / Bouncer";
 
-    // normX: negative = LEFT of screen (4th stump/outside off for RHB), positive = RIGHT of screen (pads/leg for RHB)
+    // Adjust lateral coordinate relative to batter hand (RHB off-side is < 0, LHB off-side is > 0)
+    const batterRelX = (batterHand === 'LHB') ? -normX : normX;
+
     let lineName = "On the Stumps";
-    if (normX < -0.45) lineName = "Wide Outside Off";
-    else if (normX < -0.15) lineName = "4th Stump Corridor";
-    else if (normX <= 0.18) lineName = "Straight (Stumps)";
-    else if (normX <= 0.50) lineName = "Pads / Leg Stump";
+    if (batterRelX < -0.45) lineName = "Wide Outside Off";
+    else if (batterRelX < -0.15) lineName = "4th Stump Corridor";
+    else if (batterRelX <= 0.18) lineName = "Straight (Stumps)";
+    else if (batterRelX <= 0.50) lineName = "Pads / Leg Stump";
     else lineName = "Down Leg Side";
 
     return `${lengthName} • ${lineName}`;
   }
-
 
   function drawPitchModal() {
     pCtx.clearRect(0, 0, pModalCanvas.width, pModalCanvas.height);
@@ -1928,11 +2039,9 @@
     const PX = (pModalCanvas.width - PW) / 2;
     const PY = 45;
 
-    // Turf
     pCtx.fillStyle = "#1e3822";
     pCtx.fillRect(0, 0, pModalCanvas.width, pModalCanvas.height);
 
-    // Pitch Box
     pCtx.fillStyle = "#c7b088";
     pCtx.fillRect(PX, PY, PW, PH);
     pCtx.strokeStyle = "#8d7751";
@@ -1944,19 +2053,16 @@
     const bowlerCreaseY = PY + PH - 38;
     const pitchLength = bowlerCreaseY - creaseY;
 
-    // Measured forward from batter crease downwards
     const fullY = creaseY + (pitchLength * 0.22);
     const goodY = creaseY + (pitchLength * 0.45);
     const shortY = creaseY + (pitchLength * 0.70);
 
-    // 4th stump / Outside Off is strictly on the LEFT (-1) of the screen for RHB
     const offDir = isLHB ? 1 : -1;
     const stumpW = 28;
     const offChanW = 44;
     const legChanW = 38;
     const centerX = PX + PW / 2;
 
-    // Lateral Corridors
     const offX = offDir === -1 ? (centerX - stumpW/2 - offChanW) : (centerX + stumpW/2);
     pCtx.fillStyle = "rgba(255, 183, 77, 0.24)";
     pCtx.fillRect(offX, creaseY, offChanW, pitchLength);
@@ -1971,7 +2077,6 @@
     pCtx.fillStyle = "rgba(240, 98, 146, 0.16)";
     pCtx.fillRect(legX, creaseY, legChanW, pitchLength);
 
-    // Length dashed lines
     pCtx.setLineDash([4, 4]);
     pCtx.strokeStyle = "rgba(255, 255, 255, 0.6)";
     pCtx.lineWidth = 1.5;
@@ -1983,12 +2088,10 @@
     });
     pCtx.setLineDash([]);
 
-    // Stumps
     pCtx.fillStyle = "#ffffff";
     pCtx.fillRect(centerX - 12, creaseY - 14, 24, 6);
     pCtx.fillRect(centerX - 12, bowlerCreaseY + 8, 24, 6);
 
-    // Creases
     pCtx.strokeStyle = "#ffffff";
     pCtx.lineWidth = 2.5;
     pCtx.beginPath();
@@ -1996,7 +2099,6 @@
     pCtx.moveTo(PX - 12, bowlerCreaseY); pCtx.lineTo(PX + PW + 12, bowlerCreaseY);
     pCtx.stroke();
 
-    // Length Labels
     pCtx.font = "bold 9.5px -apple-system, sans-serif";
     pCtx.fillStyle = "rgba(255, 255, 255, 0.9)";
     pCtx.textAlign = offDir === -1 ? "right" : "left";
@@ -2006,22 +2108,17 @@
     pCtx.fillText("BACK OF LENGTH", labelX, (goodY + shortY) / 2 + 4);
     pCtx.fillText("SHORT / BOUNCER", labelX, (shortY + bowlerCreaseY) / 2 + 4);
 
-    // Batter & Bowler Labels
     pCtx.font = "bold 11px sans-serif";
     pCtx.textAlign = "center";
     pCtx.fillStyle = "#ff5252";
     pCtx.fillText(`BATTER CREASE (${isLHB ? 'LHB' : 'RHB'})`, centerX, creaseY - 22);
 
-    // Release Stance:
-    // Left of stumps = -42px (Left side of screen)
-    // Right of stumps = +42px (Right side of screen)
     const releaseOffsetX = (bowlingAngle === 'left' ? -42 : 42);
     const bowlerReleaseX = centerX + releaseOffsetX;
 
     pCtx.fillStyle = "#81c784";
     pCtx.fillText(`BOWLER RELEASE: ${bowlingAngle === 'left' ? 'LEFT OF STUMPS' : 'RIGHT OF STUMPS'}`, centerX, bowlerCreaseY + 30);
 
-    // Bowler Release Marker
     pCtx.beginPath();
     pCtx.arc(bowlerReleaseX, bowlerCreaseY, 6, 0, Math.PI * 2);
     pCtx.fillStyle = "#81c784";
@@ -2030,12 +2127,10 @@
     pCtx.lineWidth = 2;
     pCtx.stroke();
 
-    // 4th Stump Channel Banner
     pCtx.fillStyle = "#ffd54f";
     pCtx.font = "bold 9px sans-serif";
     pCtx.fillText("4TH STUMP CHANNEL", offX + offChanW / 2, creaseY - 6);
 
-    // Draw Target Reticle & Angled Trajectory
     if (pitchTarget) {
       const targetY = creaseY + (pitchTarget.normY * pitchLength);
       const targetX = centerX + (pitchTarget.normX * (PW / 2 - 12));
@@ -2078,8 +2173,10 @@
 
   pModalCanvas.addEventListener('pointerdown', (e) => {
     const rect = pModalCanvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
+    const scaleX = pModalCanvas.width / rect.width;
+    const scaleY = pModalCanvas.height / rect.height;
+    const clickX = (e.clientX - rect.left) * scaleX;
+    const clickY = (e.clientY - rect.top) * scaleY;
 
     const PW = 160;
     const PH = 400;
@@ -2092,7 +2189,6 @@
 
     if (clickY >= creaseY && clickY <= bowlerCreaseY && clickX >= PX && clickX <= PX + PW) {
       const normY = (clickY - creaseY) / pitchLength;
-      // normX is directly mapped: negative = left of pitch, positive = right of pitch
       const normX = (clickX - centerX) / (PW / 2 - 12);
 
       const desc = evaluatePitchLocation(normX, normY);
@@ -2117,6 +2213,7 @@
       elements = [];
       arrowStart = null;
       pitchTarget = null;
+      document.getElementById('pitchTargetText').textContent = "Tap on pitch to place marker";
       roster.forEach(p => p.role = null);
       renderRoster();
       drawCanvas();
@@ -2128,21 +2225,33 @@
     const exportCanvas = document.createElement('canvas');
     const expCtx = exportCanvas.getContext('2d');
 
+    const headerHeight = 44;
     const legendHeight = 150;
     exportCanvas.width = canvas.width;
-    exportCanvas.height = canvas.height + legendHeight;
+    exportCanvas.height = headerHeight + canvas.height + legendHeight;
 
-    expCtx.drawImage(canvas, 0, 0);
-
+    // Header Title Bar
     expCtx.fillStyle = "#121318";
-    expCtx.fillRect(0, canvas.height, exportCanvas.width, legendHeight);
+    expCtx.fillRect(0, 0, exportCanvas.width, headerHeight);
+    expCtx.fillStyle = "#ffffff";
+    expCtx.font = "bold 18px -apple-system, BlinkMacSystemFont, sans-serif";
+    const diagName = document.getElementById('diagTitle').value || 'Match Field Plan';
+    expCtx.fillText(diagName, 25, 28);
+
+    // Draw Field Canvas
+    expCtx.drawImage(canvas, 0, headerHeight);
+
+    // Footer Squad Legend
+    const footerTop = headerHeight + canvas.height;
+    expCtx.fillStyle = "#121318";
+    expCtx.fillRect(0, footerTop, exportCanvas.width, legendHeight);
 
     expCtx.fillStyle = "#a5d6a7";
     expCtx.font = "bold 13px -apple-system, BlinkMacSystemFont, sans-serif";
-    expCtx.fillText("MATCH TEAM SHEET & SQUAD ROSTER (14)", 25, canvas.height + 24);
+    expCtx.fillText("MATCH TEAM SHEET & SQUAD ROSTER (14)", 25, footerTop + 24);
 
     const startX = 25;
-    const startY = canvas.height + 45;
+    const startY = footerTop + 45;
     const colW = 150;
     const rowH = 26;
 
@@ -2168,7 +2277,7 @@
     });
 
     const link = document.createElement('a');
-    link.download = (document.getElementById('diagTitle').value || 'cricket-field') + '.png';
+    link.download = diagName.replace(/[^a-z0-9-_ ]/gi, '') + '.png';
     link.href = exportCanvas.toDataURL('image/png');
     link.click();
   }
@@ -2197,7 +2306,7 @@
   }
 
   function loadFromURLHash() {
-    if (!window.location.hash || !window.location.hash.includes('data=')) return;
+    if (!window.location.hash || !window.location.hash.includes('data=')) return false;
     try {
       const hashStr = window.location.hash.split('data=')[1];
       const json = decodeURIComponent(atob(hashStr));
@@ -2205,9 +2314,9 @@
 
       if (data) {
         document.getElementById('diagTitle').value = data.title || 'Shared Field Plan';
-        setBatterHand(data.batterHand || 'RHB');
-        setBowlingEnd(data.strikerEnd || 'top');
-        if (data.bowlingAngle) setBowlingAngle(data.bowlingAngle);
+        setBatterHand(data.batterHand || 'RHB', true);
+        setBowlingEnd(data.strikerEnd || 'top', true);
+        if (data.bowlingAngle) setBowlingAngle(data.bowlingAngle, true);
         if (data.pitchTarget) {
           pitchTarget = data.pitchTarget;
           document.getElementById('pitchTargetText').textContent = pitchTarget.label || "Custom Target";
@@ -2216,25 +2325,102 @@
         elements = data.elements || [];
         renderRoster();
         drawCanvas();
+        return true;
       }
     } catch (e) {
       console.error("Could not parse link:", e);
     }
+    return false;
   }
 
   // ==========================================
-  // --- SUPABASE CLOUD SYNC ENGINE ---
+  // --- SUPABASE CLOUD SYNC & TEAM BROWSER ---
   // ==========================================
-  function promptTeamCode() {
-    const code = prompt("Enter a Team PIN / Code to sync fields across devices:", activeTeamCode || "U13REPS");
-    if (code) {
-      connectTeamCode(code.trim().toUpperCase());
+  function openCloudModal() {
+    document.getElementById('customTeamCodeInput').value = activeTeamCode || '';
+    document.getElementById('cloud-modal-overlay').style.display = 'flex';
+    fetchDatabaseTeamsList();
+  }
+
+  function closeCloudModal() {
+    document.getElementById('cloud-modal-overlay').style.display = 'none';
+  }
+
+  function connectFromModalInput() {
+    const val = document.getElementById('customTeamCodeInput').value.trim().toUpperCase();
+    if (!val) return;
+    connectTeamCode(val);
+    closeCloudModal();
+  }
+
+  // Pulls all available teams from Supabase `team_tactics`
+  async function fetchDatabaseTeamsList() {
+    const listEl = document.getElementById('db-team-list');
+    if (!supabaseClient) {
+      listEl.innerHTML = '<div style="padding: 12px; font-size: 0.8rem; color: var(--danger); text-align: center;">Supabase client not configured.</div>';
+      return;
     }
+
+    listEl.innerHTML = '<div style="padding: 12px; font-size: 0.8rem; color: var(--text-muted); text-align: center;">Fetching saved teams from database...</div>';
+
+    try {
+      const { data, error } = await supabaseClient
+        .from('team_tactics')
+        .select('team_code, updated_at, data')
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+
+      remoteTeamsCache = {};
+      if (!data || data.length === 0) {
+        listEl.innerHTML = '<div style="padding: 12px; font-size: 0.8rem; color: var(--text-muted); text-align: center;">No teams saved in database yet. Enter a Team Code below to create one.</div>';
+        return;
+      }
+
+      listEl.innerHTML = '';
+      data.forEach(row => {
+        if (!row.team_code) return;
+        remoteTeamsCache[row.team_code] = row;
+
+        const item = document.createElement('div');
+        item.className = `db-team-item ${row.team_code === activeTeamCode ? 'active-team' : ''}`;
+
+        const squadCount = row.data?.squadLists ? Object.keys(row.data.squadLists).length : 0;
+        const scenarioCount = row.data?.scenarios ? Object.keys(row.data.scenarios).length : 0;
+        const updatedDate = row.updated_at ? new Date(row.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+
+        item.innerHTML = `
+          <div>
+            <div class="db-team-code">${row.team_code} ${row.team_code === activeTeamCode ? '<span style="color:#4caf50;font-size:0.7rem;">(Active)</span>' : ''}</div>
+            <div class="db-team-meta">${squadCount} saved squad(s) • ${scenarioCount} scenario(s)</div>
+          </div>
+          <div style="text-align: right;">
+            <div class="db-team-meta">${updatedDate}</div>
+            <span style="font-size: 0.72rem; color: #81c784; font-weight: 600;">Load Team →</span>
+          </div>
+        `;
+
+        item.onclick = () => {
+          connectTeamCode(row.team_code);
+          closeCloudModal();
+        };
+        listEl.appendChild(item);
+      });
+
+      refreshSquadListDropdown();
+    } catch (err) {
+      console.error("Failed to fetch database teams:", err);
+      listEl.innerHTML = '<div style="padding: 12px; font-size: 0.8rem; color: var(--danger); text-align: center;">Could not load teams from database.</div>';
+    }
+  }
+
+  async function FetchAllDatabaseTeamsAndSquads() {
+    await fetchDatabaseTeamsList();
   }
 
   async function connectTeamCode(code) {
     if (!code) return;
-    activeTeamCode = code;
+    activeTeamCode = code.trim().toUpperCase();
     localStorage.setItem('cricket_active_team_code', activeTeamCode);
 
     if (!supabaseClient) {
@@ -2247,7 +2433,7 @@
     try {
       const { data, error } = await supabaseClient
         .from('team_tactics')
-        .select('data')
+        .select('data, updated_at')
         .eq('team_code', activeTeamCode)
         .maybeSingle();
 
@@ -2258,13 +2444,14 @@
       }
 
       if (data && data.data) {
+        remoteTeamsCache[activeTeamCode] = { team_code: activeTeamCode, data: data.data, updated_at: data.updated_at };
+
         if (data.data.scenarios) {
           localStorage.setItem('cricket_field_scenarios', JSON.stringify(data.data.scenarios));
           refreshScenarioRibbon();
         }
         if (data.data.squadLists) {
           localStorage.setItem('cricket_saved_squad_lists', JSON.stringify(data.data.squadLists));
-          refreshSquadListDropdown();
         }
         if (data.data.currentRoster) {
           roster = data.data.currentRoster;
@@ -2274,13 +2461,13 @@
           elements = data.data.currentElements;
         }
         if (data.data.bowlingAngle) {
-          bowlingAngle = data.data.bowlingAngle;
-          setBowlingAngle(bowlingAngle);
+          setBowlingAngle(data.data.bowlingAngle, true);
         }
         if (data.data.pitchTarget) {
           pitchTarget = data.data.pitchTarget;
           document.getElementById('pitchTargetText').textContent = pitchTarget.label || "Custom Target";
         }
+        refreshSquadListDropdown();
         drawCanvas();
         updateSyncUI(true, `Team: ${activeTeamCode}`);
       } else {
@@ -2314,6 +2501,7 @@
           data: cloudPayload,
           updated_at: new Date().toISOString()
         });
+      remoteTeamsCache[activeTeamCode] = { team_code: activeTeamCode, data: cloudPayload, updated_at: new Date().toISOString() };
       updateSyncUI(true, `Team: ${activeTeamCode}`);
     } catch (err) {
       console.error("Cloud push failed:", err);
@@ -2327,7 +2515,7 @@
     if (label) label.textContent = text;
   }
 
-  // --- SQUAD MANAGEMENT ---
+  // --- SQUAD MANAGEMENT (LOCAL + DATABASE TEAMS) ---
   function openSquadManagerModal() {
     const names = roster.map(p => p.name).join('\n');
     document.getElementById('bulkSquadInput').value = names;
@@ -2371,15 +2559,60 @@
   }
 
   function refreshSquadListDropdown() {
-    const lists = getSavedSquadLists();
+    const localLists = getSavedSquadLists();
     const sel = document.getElementById('squadListSelect');
-    sel.innerHTML = '<option value="">-- Saved Teams --</option>';
-    Object.keys(lists).forEach(name => {
-      const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
-      sel.appendChild(opt);
-    });
+    const previousValue = sel.value;
+    sel.innerHTML = '<option value="">-- Choose Saved Team --</option>';
+
+    // 1. Local / Active Team Squads
+    const localKeys = Object.keys(localLists);
+    if (localKeys.length > 0) {
+      const localGroup = document.createElement('optgroup');
+      localGroup.label = activeTeamCode ? `Current Team (${activeTeamCode}) Squads` : 'Local Saved Squads';
+      localKeys.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = `local::${name}`;
+        opt.textContent = name;
+        localGroup.appendChild(opt);
+      });
+      sel.appendChild(localGroup);
+    }
+
+    // 2. All Database Teams & Squads from Supabase
+    const dbTeamCodes = Object.keys(remoteTeamsCache);
+    if (dbTeamCodes.length > 0) {
+      const dbGroup = document.createElement('optgroup');
+      dbGroup.label = 'All Database Teams (Cloud)';
+
+      dbTeamCodes.forEach(code => {
+        const row = remoteTeamsCache[code];
+        // Option to load the team's active 14-player roster directly
+        if (row.data && Array.isArray(row.data.currentRoster)) {
+          const opt = document.createElement('option');
+          opt.value = `db_active::${code}`;
+          opt.textContent = `[DB: ${code}] Active Roster`;
+          dbGroup.appendChild(opt);
+        }
+        // Options for any named squadLists inside that team record
+        if (row.data && row.data.squadLists) {
+          Object.keys(row.data.squadLists).forEach(sName => {
+            if (code === activeTeamCode && localLists[sName]) return; // avoid duplicate
+            const opt = document.createElement('option');
+            opt.value = `db_squad::${code}::${sName}`;
+            opt.textContent = `[DB: ${code}] ${sName}`;
+            dbGroup.appendChild(opt);
+          });
+        }
+      });
+
+      if (dbGroup.children.length > 0) {
+        sel.appendChild(dbGroup);
+      }
+    }
+
+    if (previousValue && Array.from(sel.options).some(o => o.value === previousValue)) {
+      sel.value = previousValue;
+    }
   }
 
   function saveCurrentSquadList() {
@@ -2392,34 +2625,58 @@
 
     localStorage.setItem('cricket_saved_squad_lists', JSON.stringify(lists));
     refreshSquadListDropdown();
-    document.getElementById('squadListSelect').value = squadName;
+    document.getElementById('squadListSelect').value = `local::${squadName}`;
+    pushToCloud();
+  }
+
+  function applySquadNamesToRoster(namesArray) {
+    if (!Array.isArray(namesArray)) return;
+    namesArray.forEach((n, i) => {
+      if (roster[i]) {
+        const playerName = (typeof n === 'object' && n !== null) ? (n.name || `Player ${i + 1}`) : n;
+        roster[i].name = playerName;
+        elements.forEach(el => {
+          if (el.type === 'dot' && el.playerId === roster[i].id) el.playerName = playerName;
+        });
+      }
+    });
+    renderRoster();
+    drawCanvas();
     pushToCloud();
   }
 
   function loadSelectedSquadList() {
-    const name = document.getElementById('squadListSelect').value;
-    if (!name) return;
+    const val = document.getElementById('squadListSelect').value;
+    if (!val) return;
 
-    const lists = getSavedSquadLists();
-    const savedNames = lists[name];
-    if (savedNames && Array.isArray(savedNames)) {
-      savedNames.forEach((n, i) => {
-        if (roster[i]) {
-          roster[i].name = n;
-          elements.forEach(el => {
-            if (el.type === 'dot' && el.playerId === roster[i].id) el.playerName = n;
-          });
-        }
-      });
-      renderRoster();
-      drawCanvas();
-      pushToCloud();
+    if (val.startsWith('local::')) {
+      const name = val.replace('local::', '');
+      const lists = getSavedSquadLists();
+      if (lists[name]) applySquadNamesToRoster(lists[name]);
+    } else if (val.startsWith('db_active::')) {
+      const code = val.replace('db_active::', '');
+      const teamRow = remoteTeamsCache[code];
+      if (teamRow?.data?.currentRoster) {
+        applySquadNamesToRoster(teamRow.data.currentRoster);
+      }
+    } else if (val.startsWith('db_squad::')) {
+      const parts = val.split('::');
+      const code = parts[1];
+      const sName = parts.slice(2).join('::');
+      const savedNames = remoteTeamsCache[code]?.data?.squadLists?.[sName];
+      if (savedNames) {
+        applySquadNamesToRoster(savedNames);
+      }
     }
   }
 
   function deleteSelectedSquadList() {
-    const name = document.getElementById('squadListSelect').value;
-    if (!name) return;
+    const val = document.getElementById('squadListSelect').value;
+    if (!val || !val.startsWith('local::')) {
+      alert("Select a local saved squad from the dropdown to delete.");
+      return;
+    }
+    const name = val.replace('local::', '');
     if (confirm(`Delete saved squad "${name}"?`)) {
       const lists = getSavedSquadLists();
       delete lists[name];
@@ -2465,9 +2722,9 @@
       batterHand: batterHand,
       strikerEnd: strikerEnd,
       bowlingAngle: bowlingAngle,
-      pitchTarget: pitchTarget,
-      roster: roster,
-      elements: elements
+      pitchTarget: pitchTarget ? JSON.parse(JSON.stringify(pitchTarget)) : null,
+      roster: JSON.parse(JSON.stringify(roster)),
+      elements: JSON.parse(JSON.stringify(elements))
     };
 
     localStorage.setItem('cricket_field_scenarios', JSON.stringify(scenarios));
@@ -2482,18 +2739,18 @@
     if (data) {
       activeScenarioName = name;
       document.getElementById('diagTitle').value = data.title || name;
-      setBatterHand(data.batterHand || 'RHB');
-      setBowlingEnd(data.strikerEnd || 'top');
-      if (data.bowlingAngle) setBowlingAngle(data.bowlingAngle);
+      if (data.roster) roster = JSON.parse(JSON.stringify(data.roster));
+      elements = JSON.parse(JSON.stringify(data.elements || []));
+      setBatterHand(data.batterHand || 'RHB', true);
+      setBowlingEnd(data.strikerEnd || 'top', true);
+      if (data.bowlingAngle) setBowlingAngle(data.bowlingAngle, true);
       if (data.pitchTarget) {
-        pitchTarget = data.pitchTarget;
+        pitchTarget = JSON.parse(JSON.stringify(data.pitchTarget));
         document.getElementById('pitchTargetText').textContent = pitchTarget.label || "Custom Target";
       } else {
         pitchTarget = null;
         document.getElementById('pitchTargetText').textContent = "Tap on pitch to place marker";
       }
-      if (data.roster) roster = data.roster;
-      elements = JSON.parse(JSON.stringify(data.elements || []));
       arrowStart = null;
       renderRoster();
       drawCanvas();
@@ -2547,10 +2804,13 @@
   renderRoster();
   refreshScenarioRibbon();
   refreshSquadListDropdown();
-  loadFromURLHash();
+  const loadedFromHash = loadFromURLHash();
   drawCanvas();
 
-  if (activeTeamCode) {
+  // Pre-fetch all database teams so the dropdown is populated immediately
+  fetchDatabaseTeamsList();
+
+  if (activeTeamCode && !loadedFromHash) {
     connectTeamCode(activeTeamCode);
   }
 </script>
