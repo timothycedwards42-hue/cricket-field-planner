@@ -805,6 +805,19 @@
       </label>
     </div>
 
+    <div class="section-title">Standard Shots</div>
+    <div class="control-group" style="display: flex; flex-direction: column; gap: 8px;">
+      <label class="toggle-row" title="Show 6 standard shot trajectories to the boundary for the selected bowler type">
+        <span style="color: #80deea; font-weight: 600;">Show Shot Lines</span>
+        <input type="checkbox" id="toggleStandardShots" onchange="onToggleStandardShots()">
+      </label>
+      <div class="segmented-control" id="bowler-type-control">
+        <button class="segment-btn active" id="btn-bowl-ra_fast" onclick="setBowlerType('ra_fast')">RA Fast</button>
+        <button class="segment-btn" id="btn-bowl-ra_leg_spin" onclick="setBowlerType('ra_leg_spin')">RA Leg</button>
+        <button class="segment-btn" id="btn-bowl-ra_off_spin" onclick="setBowlerType('ra_off_spin')">RA Off</button>
+      </div>
+    </div>
+
     <div class="section-title" style="margin-top: auto;">Help & Feedback</div>
     <button class="btn-top" style="width: 100%; justify-content: center;" onclick="openFeedbackModal()">💬 Send Feedback</button>
   </div>
@@ -974,6 +987,7 @@
       <li><strong>☁️ Database Team Selector:</strong> Click the <em>Sync</em> pill in the top bar or <em>☁️ DB Teams</em> above the roster to pull a live list of all teams stored in the database and switch between them.</li>
       <li><strong>🎯 Delivery Angle & Pitch View:</strong> Click <em>🎯 Pitch View</em> to set target length and line. Toggle between <em>Left of Stumps</em> and <em>Right of Stumps</em> to set release position.</li>
       <li><strong>🟡 Fielder Coverage & Scoring Gaps:</strong> Toggle <em>Show Scoring Gaps</em> to visualize open scoring areas. Each fielder casts a coverage circle that scales with distance from the batter—smaller close to the bat and larger near the boundary.</li>
+      <li><strong>🏏 Standard Shot Lines:</strong> Toggle <em>Show Shot Lines</em> in the left panel and choose <em>RA Fast</em>, <em>RA Leg</em>, or <em>RA Off</em> to project 6 common scoring trajectories to the boundary (auto-mirrored for RHB/LHB and North/South ends).</li>
       <li><strong>Pitch Lengths & Lines:</strong> The shaded channels on the turf show the Off-Side Corridor of Uncertainty (amber), straight stumps (cyan), and leg side (rose), along with Full, Good, and Short length zones.</li>
       <li><strong>Placing Fielders:</strong> Select a player in the right squad panel, then tap/click on the oval to drop their dot. Fielders cannot be placed or dragged beyond the boundary rope.</li>
       <li><strong>Zen Mode:</strong> Click <em>📺 Zen Mode</em> (or press `F` or `Esc`) to hide all sidebars for clean presentation during team talks.</li>
@@ -1072,7 +1086,48 @@
   let batterHand = 'RHB';
   let strikerEnd = 'top';
   let bowlingAngle = 'right';
+  let bowlerType = 'ra_fast';
   let pitchTarget = null; // { normX, normY, label }
+
+  // 6 standard shots per bowler type (angleDeg: 0 = straight down ground, negative = off-side, positive = leg-side)
+  const STANDARD_SHOTS_CONFIG = {
+    ra_fast: {
+      label: "RA Fast",
+      color: "#ff8a65",
+      shots: [
+        { name: "Glide / Edge",    angleDeg: -142 },
+        { name: "Square Cut",      angleDeg: -92  },
+        { name: "Cover Drive",     angleDeg: -52  },
+        { name: "Straight Drive",  angleDeg: -12  },
+        { name: "Pull Shot",       angleDeg: 92   },
+        { name: "Leg Glance",      angleDeg: 148  }
+      ]
+    },
+    ra_leg_spin: {
+      label: "RA Leg Spin",
+      color: "#ce93d8",
+      shots: [
+        { name: "Cut Shot",        angleDeg: -102 },
+        { name: "Inside-Out Cover",angleDeg: -42  },
+        { name: "Straight Loft",   angleDeg: 8    },
+        { name: "Slog Sweep",      angleDeg: 52   },
+        { name: "Sweep Shot",      angleDeg: 98   },
+        { name: "Paddle Sweep",    angleDeg: 142  }
+      ]
+    },
+    ra_off_spin: {
+      label: "RA Off Spin",
+      color: "#4dd0e1",
+      shots: [
+        { name: "Late Cut / Dab",  angleDeg: -122 },
+        { name: "Cover Drive",     angleDeg: -58  },
+        { name: "Mid-Off Drive",   angleDeg: -18  },
+        { name: "On Drive",        angleDeg: 22   },
+        { name: "Whip / Mid-Wkt",  angleDeg: 58   },
+        { name: "Sweep Shot",      angleDeg: 108  }
+      ]
+    }
+  };
 
   const MAX_HISTORY = 30;
   let historyStack = [];
@@ -1189,6 +1244,26 @@
     }
     drawPitchModal();
     if (!skipSync) scheduleCloudPush();
+  }
+
+  function setBowlerType(type, skipSync = false, autoEnableToggle = true) {
+    if (!STANDARD_SHOTS_CONFIG[type]) return;
+    bowlerType = type;
+    Object.keys(STANDARD_SHOTS_CONFIG).forEach(key => {
+      const btn = document.getElementById(`btn-bowl-${key}`);
+      if (btn) btn.classList.toggle('active', key === type);
+    });
+    if (autoEnableToggle) {
+      const toggle = document.getElementById('toggleStandardShots');
+      if (toggle && !toggle.checked) toggle.checked = true;
+    }
+    drawCanvas();
+    if (!skipSync) scheduleCloudPush();
+  }
+
+  function onToggleStandardShots() {
+    drawCanvas();
+    scheduleCloudPush();
   }
 
   function toggleZenMode() {
@@ -1626,6 +1701,102 @@
     ctx.restore();
   }
 
+  // --- STANDARD SHOT TRAJECTORIES TO BOUNDARY ---
+  function drawStandardShots(striker) {
+    const profile = STANDARD_SHOTS_CONFIG[bowlerType];
+    if (!profile) return;
+
+    const isLHB = batterHand === 'LHB';
+    const a = BOUNDARY_RADIUS_X - 2;
+    const b = BOUNDARY_RADIUS_Y - 2;
+    const ox = striker.x - CX;
+    const oy = striker.y - CY;
+
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.ellipse(CX, CY, a, b, 0, 0, Math.PI * 2);
+    ctx.clip();
+
+    profile.shots.forEach(shot => {
+      const rad = (shot.angleDeg * Math.PI) / 180;
+      let dirX = Math.sin(rad);
+      let dirY = Math.cos(rad);
+
+      if (isLHB) dirX = -dirX;
+      if (striker.isBottom) {
+        dirX = -dirX;
+        dirY = -dirY;
+      }
+
+      // Intersect ray (striker + r * dir) with boundary ellipse centered at (CX, CY)
+      const A = (dirX * dirX) / (a * a) + (dirY * dirY) / (b * b);
+      const B = (ox * dirX) / (a * a) + (oy * dirY) / (b * b);
+      const C_val = (ox * ox) / (a * a) + (oy * oy) / (b * b) - 1;
+      const disc = B * B - A * C_val;
+      if (disc < 0) return;
+
+      const distToBoundary = (-B + Math.sqrt(disc)) / A;
+      if (distToBoundary <= 24) return;
+
+      const startDist = 20;
+      const x1 = striker.x + dirX * startDist;
+      const y1 = striker.y + dirY * startDist;
+      const x2 = striker.x + dirX * (distToBoundary - 3);
+      const y2 = striker.y + dirY * (distToBoundary - 3);
+
+      // Dashed trajectory line to boundary
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.strokeStyle = profile.color;
+      ctx.globalAlpha = 0.8;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 5]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Small arrowhead at the boundary rope
+      const arrowAngle = Math.atan2(dirY, dirX);
+      const headLen = 9;
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - headLen * Math.cos(arrowAngle - Math.PI / 6), y2 - headLen * Math.sin(arrowAngle - Math.PI / 6));
+      ctx.lineTo(x2 - headLen * Math.cos(arrowAngle + Math.PI / 6), y2 - headLen * Math.sin(arrowAngle + Math.PI / 6));
+      ctx.closePath();
+      ctx.fillStyle = profile.color;
+      ctx.globalAlpha = 0.92;
+      ctx.fill();
+
+      // Label pill placed ~72% of the way to the boundary
+      const labelDist = Math.max(95, distToBoundary * 0.72);
+      const lx = striker.x + dirX * labelDist;
+      const ly = striker.y + dirY * labelDist;
+
+      ctx.globalAlpha = 1;
+      ctx.font = "700 9.5px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const metrics = ctx.measureText(shot.name);
+      const padX = 6;
+      const boxW = metrics.width + padX * 2;
+      const boxH = 16;
+
+      ctx.fillStyle = "rgba(14, 16, 22, 0.88)";
+      ctx.strokeStyle = profile.color;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(lx - boxW / 2, ly - boxH / 2, boxW, boxH, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(shot.name, lx, ly);
+    });
+
+    ctx.restore();
+  }
+
   // Draw Pitch Lengths & Lateral Bowling Lines on Ground Canvas
   function drawPitchZones(pitchLeft, pitchTop, pitchW, pitchH, striker) {
     ctx.save();
@@ -1744,6 +1915,11 @@
     const showScoringZones = document.getElementById('toggleScoringZones').checked;
     if (showScoringZones) {
       drawScoringZones(striker);
+    }
+
+    const showStandardShots = document.getElementById('toggleStandardShots').checked;
+    if (showStandardShots) {
+      drawStandardShots(striker);
     }
 
     const pitchW = 46;
@@ -2503,6 +2679,8 @@
       batterHand: batterHand,
       strikerEnd: strikerEnd,
       bowlingAngle: bowlingAngle,
+      bowlerType: bowlerType,
+      showStandardShots: document.getElementById('toggleStandardShots').checked,
       pitchTarget: pitchTarget,
       roster: roster,
       elements: elements
@@ -2534,6 +2712,10 @@
         setBatterHand(data.batterHand || 'RHB', true);
         setBowlingEnd(data.strikerEnd || 'top', true, true);
         setBowlingAngle(data.bowlingAngle || 'right', true, true);
+        if (data.bowlerType) setBowlerType(data.bowlerType, true, false);
+        if (typeof data.showStandardShots === 'boolean') {
+          document.getElementById('toggleStandardShots').checked = data.showStandardShots;
+        }
         if (data.pitchTarget) {
           pitchTarget = data.pitchTarget;
           document.getElementById('pitchTargetText').textContent = pitchTarget.label || "Custom Target";
@@ -2728,6 +2910,10 @@
         setBatterHand(data.data.batterHand || 'RHB', true);
         setBowlingEnd(data.data.strikerEnd || 'top', true, true);
         setBowlingAngle(data.data.bowlingAngle || 'right', true, true);
+        if (data.data.bowlerType) setBowlerType(data.data.bowlerType, true, false);
+        if (typeof data.data.showStandardShots === 'boolean') {
+          document.getElementById('toggleStandardShots').checked = data.data.showStandardShots;
+        }
 
         if (data.data.pitchTarget) {
           pitchTarget = data.data.pitchTarget;
@@ -2775,6 +2961,8 @@
       currentRoster: roster,
       currentElements: elements,
       bowlingAngle: bowlingAngle,
+      bowlerType: bowlerType,
+      showStandardShots: document.getElementById('toggleStandardShots').checked,
       pitchTarget: pitchTarget,
       updatedAt: nowIso
     };
@@ -3023,6 +3211,8 @@
       batterHand: batterHand,
       strikerEnd: strikerEnd,
       bowlingAngle: bowlingAngle,
+      bowlerType: bowlerType,
+      showStandardShots: document.getElementById('toggleStandardShots').checked,
       pitchTarget: pitchTarget ? JSON.parse(JSON.stringify(pitchTarget)) : null,
       roster: JSON.parse(JSON.stringify(roster)),
       elements: JSON.parse(JSON.stringify(elements))
@@ -3045,6 +3235,10 @@
         setBatterHand(data.batterHand || 'RHB', true);
         setBowlingEnd(data.strikerEnd || 'top', true, true);
         setBowlingAngle(data.bowlingAngle || 'right', true, true);
+        if (data.bowlerType) setBowlerType(data.bowlerType, true, false);
+        if (typeof data.showStandardShots === 'boolean') {
+          document.getElementById('toggleStandardShots').checked = data.showStandardShots;
+        }
         if (data.pitchTarget) {
           pitchTarget = JSON.parse(JSON.stringify(data.pitchTarget));
           document.getElementById('pitchTargetText').textContent = pitchTarget.label || "Custom Target";
