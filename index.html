@@ -795,7 +795,7 @@
         <span>Pitch Lengths & Lines</span>
         <input type="checkbox" id="togglePitchZones" checked onchange="drawCanvas()">
       </label>
-      <label class="toggle-row" title="Highlights scoring corridors and shows fielder shadow coverage out to the boundary">
+      <label class="toggle-row" title="Highlights open scoring gaps and draws distance-scaled coverage circles around each fielder">
         <span style="color: #ffd54f; font-weight: 600;">Show Scoring Gaps</span>
         <input type="checkbox" id="toggleScoringZones" checked onchange="drawCanvas()">
       </label>
@@ -973,7 +973,7 @@
     <ul style="font-size: 0.8rem; line-height: 1.6; padding-left: 18px; color: #ddd; display: flex; flex-direction: column; gap: 6px;">
       <li><strong>☁️ Database Team Selector:</strong> Click the <em>Sync</em> pill in the top bar or <em>☁️ DB Teams</em> above the roster to pull a live list of all teams stored in the database and switch between them.</li>
       <li><strong>🎯 Delivery Angle & Pitch View:</strong> Click <em>🎯 Pitch View</em> to set target length and line. Toggle between <em>Left of Stumps</em> and <em>Right of Stumps</em> to set release position.</li>
-      <li><strong>🟡 Fielder Shadow & Scoring Gaps:</strong> Toggle <em>Show Scoring Gaps</em> to visualize open boundary lanes. Fielders block scoring directly in front of them and cast defense shadows out to the boundary fence.</li>
+      <li><strong>🟡 Fielder Coverage & Scoring Gaps:</strong> Toggle <em>Show Scoring Gaps</em> to visualize open scoring areas. Each fielder casts a coverage circle that scales with distance from the batter—smaller close to the bat and larger near the boundary.</li>
       <li><strong>Pitch Lengths & Lines:</strong> The shaded channels on the turf show the Off-Side Corridor of Uncertainty (amber), straight stumps (cyan), and leg side (rose), along with Full, Good, and Short length zones.</li>
       <li><strong>Placing Fielders:</strong> Select a player in the right squad panel, then tap/click on the oval to drop their dot. Fielders cannot be placed or dragged beyond the boundary rope.</li>
       <li><strong>Zen Mode:</strong> Click <em>📺 Zen Mode</em> (or press `F` or `Esc`) to hide all sidebars for clean presentation during team talks.</li>
@@ -1535,7 +1535,30 @@
     return "Fielder";
   }
 
-  // --- FIELD-AWARE SCORING CORRIDORS & SHADOW CASTING ---
+  // --- DISTANCE-SCALED FIELDER COVERAGE CIRCLES & SCORING GAPS ---
+  const COVERAGE_CONFIG = {
+    minDistPx: 40,
+    maxDistPx: 420,
+    minRadiusPx: 26,
+    maxRadiusPx: 126,
+    bowlerRadiusPx: 31
+  };
+
+  // Reusable offscreen canvas so overlapping fielder circles blend uniformly without double-darkening
+  const coverageLayer = document.createElement('canvas');
+  coverageLayer.width = GROUND_W;
+  coverageLayer.height = GROUND_H;
+  const coverageCtx = coverageLayer.getContext('2d');
+
+  function getFielderCoverageRadius(distFromStriker, isBowler) {
+    if (isBowler) return COVERAGE_CONFIG.bowlerRadiusPx;
+    const t = Math.max(
+      0,
+      Math.min(1, (distFromStriker - COVERAGE_CONFIG.minDistPx) / (COVERAGE_CONFIG.maxDistPx - COVERAGE_CONFIG.minDistPx))
+    );
+    return COVERAGE_CONFIG.minRadiusPx + t * (COVERAGE_CONFIG.maxRadiusPx - COVERAGE_CONFIG.minRadiusPx);
+  }
+
   function drawScoringZones(striker) {
     ctx.save();
 
@@ -1546,87 +1569,59 @@
     const fDots = elements.filter(el => el.type === 'dot');
 
     const fielders = fDots.map(f => {
-      const dx = f.x - striker.x;
-      const dy = f.y - striker.y;
-      const dist = Math.hypot(dx, dy);
+      const dist = Math.hypot(f.x - striker.x, f.y - striker.y);
       const isBowler = isBowlerPosition(f.x, f.y, f.playerId);
-
-      return { 
-        x: f.x, 
-        y: f.y, 
-        dx, 
-        dy, 
-        dist, 
-        reach: isBowler ? 9 : 20 
+      return {
+        x: f.x,
+        y: f.y,
+        radius: getFielderCoverageRadius(dist, isBowler)
       };
     });
 
-    const stepAngle = (1.5 * Math.PI) / 180;
-    const halfStep = stepAngle / 2;
-    const a = BOUNDARY_RADIUS_X - 2;
-    const b = BOUNDARY_RADIUS_Y - 2;
-    const ox = striker.x - CX;
-    const oy = striker.y - CY;
+    // 1. Highlight open scoring gaps (boundary filled with warm gold, minus fielder coverage circles)
+    coverageCtx.clearRect(0, 0, GROUND_W, GROUND_H);
+    coverageCtx.globalCompositeOperation = 'source-over';
+    coverageCtx.beginPath();
+    coverageCtx.ellipse(CX, CY, BOUNDARY_RADIUS_X - 2, BOUNDARY_RADIUS_Y - 2, 0, 0, Math.PI * 2);
+    coverageCtx.fillStyle = "rgba(255, 215, 0, 0.14)";
+    coverageCtx.fill();
 
-    // Batch all wedges into 2 paths instead of ~480 separate fill() calls
-    const litPath = new Path2D();
-    const shadowPath = new Path2D();
+    coverageCtx.globalCompositeOperation = 'destination-out';
+    coverageCtx.fillStyle = "#000000";
+    fielders.forEach(f => {
+      coverageCtx.beginPath();
+      coverageCtx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+      coverageCtx.fill();
+    });
+    ctx.drawImage(coverageLayer, 0, 0, GROUND_W, GROUND_H);
 
-    for (let theta = -Math.PI; theta < Math.PI; theta += stepAngle) {
-      const cos = Math.cos(theta);
-      const sin = Math.sin(theta);
+    // 2. Shade covered zones uniformly around each fielder (no double-darkening on overlap)
+    if (fielders.length > 0) {
+      coverageCtx.clearRect(0, 0, GROUND_W, GROUND_H);
+      coverageCtx.globalCompositeOperation = 'source-over';
+      coverageCtx.fillStyle = "#0a0c10";
+      fielders.forEach(f => {
+        coverageCtx.beginPath();
+        coverageCtx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+        coverageCtx.fill();
+      });
 
-      const A = (cos * cos) / (a * a) + (sin * sin) / (b * b);
-      const B = (ox * cos) / (a * a) + (oy * sin) / (b * b);
-      const C_val = (ox * ox) / (a * a) + (oy * oy) / (b * b) - 1;
-      const disc = B * B - A * C_val;
+      ctx.save();
+      ctx.globalAlpha = 0.34;
+      ctx.drawImage(coverageLayer, 0, 0, GROUND_W, GROUND_H);
+      ctx.restore();
 
-      let maxBoundaryDist = 360;
-      if (disc >= 0) {
-        const rSol = (-B + Math.sqrt(disc)) / A;
-        if (rSol > 0) maxBoundaryDist = rSol;
-      }
-
-      let interceptDist = maxBoundaryDist;
-      let isShadowed = false;
-
-      for (let i = 0; i < fielders.length; i++) {
-        const f = fielders[i];
-        if (f.dist < 32) continue;
-
-        const proj = f.dx * cos + f.dy * sin;
-        if (proj > 25 && proj < interceptDist) {
-          const perp = Math.abs(-f.dx * sin + f.dy * cos);
-          if (perp <= f.reach) {
-            interceptDist = proj;
-            isShadowed = true;
-          }
-        }
-      }
-
-      if (interceptDist > 30) {
-        litPath.moveTo(striker.x, striker.y);
-        litPath.arc(striker.x, striker.y, interceptDist, theta - halfStep, theta + halfStep);
-        litPath.closePath();
-      }
-
-      if (isShadowed && interceptDist < maxBoundaryDist) {
-        const innerR = Math.min(interceptDist + 6, maxBoundaryDist);
-        shadowPath.moveTo(
-          striker.x + maxBoundaryDist * Math.cos(theta - halfStep),
-          striker.y + maxBoundaryDist * Math.sin(theta - halfStep)
-        );
-        shadowPath.arc(striker.x, striker.y, maxBoundaryDist, theta - halfStep, theta + halfStep);
-        shadowPath.arc(striker.x, striker.y, innerR, theta + halfStep, theta - halfStep, true);
-        shadowPath.closePath();
-      }
+      // 3. Draw crisp subtle rings around each fielder's individual coverage circle
+      ctx.strokeStyle = "rgba(129, 199, 132, 0.40)";
+      ctx.lineWidth = 1.25;
+      ctx.setLineDash([4, 4]);
+      fielders.forEach(f => {
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+      ctx.setLineDash([]);
     }
-
-    ctx.fillStyle = "rgba(255, 215, 0, 0.12)";
-    ctx.fill(litPath);
-
-    ctx.fillStyle = "rgba(10, 12, 16, 0.40)";
-    ctx.fill(shadowPath);
 
     ctx.restore();
   }
