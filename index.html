@@ -292,6 +292,7 @@
       top: 16px;
       right: 18px;
       z-index: 30;
+      pointer-events: none;
       background: rgba(20, 22, 28, 0.88);
       backdrop-filter: blur(10px);
       border: 1px solid var(--border);
@@ -361,6 +362,7 @@
     }
 
     canvas {
+      display: block;
       background: transparent;
       border-radius: 12px;
       box-shadow: 0 10px 40px rgba(0,0,0,0.6);
@@ -368,7 +370,6 @@
       touch-action: none;
       max-width: 100%;
       max-height: 100%;
-      object-fit: contain;
     }
 
     /* RIGHT SIDEBAR: Compact Squad Roster */
@@ -439,19 +440,25 @@
       width: 16px;
     }
     .roster-color-dot {
-      width: 18px;
-      height: 18px;
+      position: relative;
+      display: inline-block;
+      width: 20px;
+      height: 20px;
       border-radius: 50%;
       cursor: pointer;
       border: 1.5px solid rgba(255,255,255,0.4);
       flex-shrink: 0;
+      overflow: hidden;
     }
     .roster-color-input {
       opacity: 0;
       position: absolute;
-      pointer-events: none;
-      width: 0;
-      height: 0;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+      border: none;
+      padding: 0;
     }
     .roster-input {
       flex: 1;
@@ -498,13 +505,16 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 14px;
-      padding: 20px;
+      padding: 16px 20px;
       width: 95%;
       max-width: 500px;
+      max-height: 92vh;
+      max-height: 92dvh;
+      overflow-y: auto;
       box-shadow: 0 16px 50px rgba(0,0,0,0.7);
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
     }
     .pitch-modal-header {
       display: flex;
@@ -522,6 +532,9 @@
       box-shadow: inset 0 2px 8px rgba(0,0,0,0.4);
       margin: 0 auto;
       touch-action: none;
+      width: 100%;
+      max-width: 360px;
+      height: auto;
     }
     .target-callout-box {
       background: var(--bg);
@@ -990,6 +1003,7 @@
       <li><strong>🏏 Standard Shot Lines:</strong> Toggle <em>Show Shot Lines</em> in the left panel and choose <em>RA Fast</em>, <em>RA Leg</em>, or <em>RA Off</em> to project 6 common scoring trajectories to the boundary (auto-mirrored for RHB/LHB and North/South ends).</li>
       <li><strong>Pitch Lengths & Lines:</strong> The shaded channels on the turf show the Off-Side Corridor of Uncertainty (amber), straight stumps (cyan), and leg side (rose), along with Full, Good, and Short length zones.</li>
       <li><strong>Placing Fielders:</strong> Select a player in the right squad panel, then tap/click on the oval to drop their dot. Fielders cannot be placed or dragged beyond the boundary rope.</li>
+      <li><strong>➔ Attaching Arrows:</strong> In <em>Arrow</em> mode, click on a fielder first to attach the arrow tail to them (a dashed ring confirms attachment)—when you move that fielder, the tail follows while the arrowhead stays anchored. Click open turf instead to draw a free-standing arrow.</li>
       <li><strong>Zen Mode:</strong> Click <em>📺 Zen Mode</em> (or press `F` or `Esc`) to hide all sidebars for clean presentation during team talks.</li>
     </ul>
     <div class="modal-actions">
@@ -1079,6 +1093,31 @@
   }
 
   setupHiDPICanvas(canvas, ctx, GROUND_W, GROUND_H);
+
+  // Explicitly size #groundCanvas to the exact 800:920 box that fits #canvas-container
+  // so getBoundingClientRect() matches the rendered field 1:1 on mobile Safari & Chrome.
+  function fitGroundCanvas() {
+    const container = document.getElementById('canvas-container');
+    if (!container) return;
+    const style = getComputedStyle(container);
+    const padX = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+    const padY = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+    const availW = Math.max(100, container.clientWidth - padX);
+    const availH = Math.max(100, container.clientHeight - padY);
+    const aspect = GROUND_W / GROUND_H;
+
+    let displayW = availW;
+    let displayH = displayW / aspect;
+    if (displayH > availH) {
+      displayH = availH;
+      displayW = displayH * aspect;
+    }
+    canvas.style.width = `${Math.floor(displayW)}px`;
+    canvas.style.height = `${Math.floor(displayH)}px`;
+  }
+
+  window.addEventListener('resize', fitGroundCanvas);
+  fitGroundCanvas();
 
   let currentMode = 'dot';
   let arrowStart = null;
@@ -1268,6 +1307,7 @@
 
   function toggleZenMode() {
     document.body.classList.toggle('zen-mode');
+    requestAnimationFrame(fitGroundCanvas);
   }
 
   const MODAL_CLOSE_MAP = [
@@ -1382,6 +1422,7 @@
       if (existingDot) {
         existingDot.x = targetPos.x;
         existingDot.y = targetPos.y;
+        syncAttachedArrows(player.id, targetPos.x, targetPos.y);
       } else {
         elements.push({
           type: 'dot',
@@ -1398,6 +1439,15 @@
     scheduleCloudPush();
   }
 
+  function syncAttachedArrows(playerId, x, y) {
+    elements.forEach(el => {
+      if (el.type === 'arrow' && el.attachedPlayerId === playerId) {
+        el.x1 = x;
+        el.y1 = y;
+      }
+    });
+  }
+
   function updatePitchEnds() {
     const autoPos = getAutoPositions();
     roster.forEach(p => {
@@ -1407,6 +1457,7 @@
           const target = (p.role === 'keeper') ? autoPos.keeper : autoPos.bowler;
           dot.x = target.x;
           dot.y = target.y;
+          syncAttachedArrows(p.id, target.x, target.y);
         }
       }
     });
@@ -1433,7 +1484,7 @@
       const card = document.createElement('div');
       card.className = `roster-card ${placedCount > 0 ? 'on-field' : ''} ${idx === activePlayerIndex ? 'active-player' : ''}`;
       card.onclick = (e) => {
-        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'LABEL') {
           selectPlayer(idx);
         }
       };
@@ -1446,24 +1497,24 @@
       colorInput.type = 'color';
       colorInput.className = 'roster-color-input';
       colorInput.value = p.color;
+      colorInput.onclick = (e) => e.stopPropagation();
       colorInput.onchange = (e) => {
         p.color = e.target.value;
         elements.forEach(el => {
           if (el.type === 'dot' && el.playerId === p.id) el.color = p.color;
+          if (el.type === 'arrow' && el.attachedPlayerId === p.id) el.color = p.color;
         });
         renderRoster();
         drawCanvas();
         scheduleCloudPush();
       };
 
-      const swatch = document.createElement('div');
+      const swatch = document.createElement('label');
       swatch.className = 'roster-color-dot';
       swatch.style.background = p.color;
       swatch.title = "Change color";
-      swatch.onclick = (e) => {
-        e.stopPropagation();
-        colorInput.click();
-      };
+      swatch.onclick = (e) => e.stopPropagation();
+      swatch.appendChild(colorInput);
 
       const input = document.createElement('input');
       input.type = 'text';
@@ -1499,7 +1550,6 @@
       card.appendChild(input);
       card.appendChild(wkBtn);
       card.appendChild(bowlBtn);
-      card.appendChild(colorInput);
 
       list.appendChild(card);
     });
@@ -2040,6 +2090,14 @@
     let safetyBreach = false;
     let dotCount = 0;
 
+    // 1. Draw arrows underneath fielder dots so attached arrow tails never obscure player numbers
+    elements.forEach(el => {
+      if (el.type === 'arrow') {
+        drawArrow(el.x1, el.y1, el.x2, el.y2, el.color);
+      }
+    });
+
+    // 2. Draw fielder dots & badges
     elements.forEach(el => {
       if (el.type === 'dot') {
         dotCount++;
@@ -2106,10 +2164,12 @@
           ctx.fillText(labelText, el.x, tagY);
           ctx.restore();
         }
+      }
+    });
 
-      } else if (el.type === 'arrow') {
-        drawArrow(el.x1, el.y1, el.x2, el.y2, el.color);
-      } else if (el.type === 'label') {
+    // 3. Draw text labels on top
+    elements.forEach(el => {
+      if (el.type === 'label') {
         ctx.save();
         ctx.font = "bold 12px sans-serif";
         ctx.textAlign = "center";
@@ -2137,10 +2197,22 @@
     updateQuotaHUD(deepCount, ringCount, slipsCount, safetyBreach, dotCount);
 
     if (arrowStart && currentMode === 'arrow') {
-      ctx.beginPath();
-      ctx.arc(arrowStart.x, arrowStart.y, 6, 0, Math.PI * 2);
-      ctx.fillStyle = roster[activePlayerIndex]?.color || '#ffffff';
-      ctx.fill();
+      ctx.save();
+      if (arrowStart.playerId != null) {
+        // Visual indicator that the arrow is attached to this fielder
+        ctx.beginPath();
+        ctx.arc(arrowStart.x, arrowStart.y, 17, 0, Math.PI * 2);
+        ctx.strokeStyle = arrowStart.color || '#ffd54f';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([4, 3]);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.arc(arrowStart.x, arrowStart.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = arrowStart.color || roster[activePlayerIndex]?.color || '#ffffff';
+        ctx.fill();
+      }
+      ctx.restore();
     }
   }
 
@@ -2200,9 +2272,11 @@
     try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
 
     const { x, y } = getCanvasCoordinates(e);
+    const isTouch = e.pointerType === 'touch';
 
     if (currentMode === 'dot') {
-      const hitDot = elements.slice().reverse().find(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= 26);
+      const dotHitR = isTouch ? 42 : 26;
+      const hitDot = elements.slice().reverse().find(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= dotHitR);
       if (hitDot) {
         pushHistory();
         isDragging = true;
@@ -2225,11 +2299,16 @@
       dragMoved = true;
       draggedDot.x = clamped.x;
       draggedDot.y = clamped.y;
+      syncAttachedArrows(draggedDot.playerId, clamped.x, clamped.y);
       scheduleCanvasDraw();
     } else if (e.pointerType === 'mouse' && currentMode === 'dot') {
       const { x, y } = getCanvasCoordinates(e);
       const hoveringDot = elements.some(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= 20);
       canvas.style.cursor = hoveringDot ? 'grab' : (isInsideBoundary(x, y, 10) ? 'crosshair' : 'not-allowed');
+    } else if (e.pointerType === 'mouse' && currentMode === 'arrow' && !arrowStart) {
+      const { x, y } = getCanvasCoordinates(e);
+      const hoveringDot = elements.some(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= 24);
+      canvas.style.cursor = hoveringDot ? 'pointer' : 'crosshair';
     }
   }
 
@@ -2270,13 +2349,15 @@
     }
 
     const { x, y } = coords;
+    const isTouch = e.pointerType === 'touch';
 
     if (currentMode === 'dot') {
       if (!isInsideBoundary(x, y, 10)) {
         return;
       }
 
-      const hitDot = elements.find(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= 26);
+      const dotHitR = isTouch ? 42 : 26;
+      const hitDot = elements.find(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= dotHitR);
       if (!hitDot) {
         const p = roster[activePlayerIndex];
         pushHistory();
@@ -2284,6 +2365,7 @@
         if (existingDot) {
           existingDot.x = x;
           existingDot.y = y;
+          syncAttachedArrows(p.id, x, y);
         } else {
           elements.push({
             type: 'dot',
@@ -2302,7 +2384,13 @@
     } else if (currentMode === 'arrow') {
       const playerColor = roster[activePlayerIndex]?.color || '#ffffff';
       if (!arrowStart) {
-        arrowStart = { x, y };
+        const attachR = isTouch ? 40 : 24;
+        const hitDot = elements.slice().reverse().find(el => el.type === 'dot' && Math.hypot(el.x - x, el.y - y) <= attachR);
+        if (hitDot) {
+          arrowStart = { x: hitDot.x, y: hitDot.y, playerId: hitDot.playerId, color: hitDot.color };
+        } else {
+          arrowStart = { x, y, playerId: null, color: playerColor };
+        }
         drawCanvas();
       } else {
         if (Math.hypot(x - arrowStart.x, y - arrowStart.y) >= 8) {
@@ -2313,7 +2401,8 @@
             y1: arrowStart.y,
             x2: x,
             y2: y,
-            color: playerColor
+            color: arrowStart.color || playerColor,
+            attachedPlayerId: arrowStart.playerId ?? null
           });
           scheduleCloudPush();
         }
@@ -2321,29 +2410,37 @@
         drawCanvas();
       }
     } else if (currentMode === 'label') {
-      setTimeout(() => {
-        const text = prompt("Enter note to display on field (e.g. 'Save Single', 'Slip Catching'):");
-        if (text && text.trim()) {
-          pushHistory();
-          elements.push({ type: 'label', x, y, text: text.trim(), color: '#ffffff' });
-          drawCanvas();
-          scheduleCloudPush();
-        }
-      }, 20);
+      const text = prompt("Enter note to display on field (e.g. 'Save Single', 'Slip Catching'):");
+      if (text && text.trim()) {
+        pushHistory();
+        elements.push({ type: 'label', x, y, text: text.trim(), color: '#ffffff' });
+        drawCanvas();
+        scheduleCloudPush();
+      }
     } else if (currentMode === 'delete') {
+      const deleteDotR = isTouch ? 42 : 28;
+      const deleteLabelR = isTouch ? 44 : 32;
+      const deleteArrowDist = isTouch ? 28 : 16;
       const idx = elements.findIndex(el => {
         if (el.type === 'dot') {
-          return Math.hypot(el.x - x, el.y - y) < 28;
+          return Math.hypot(el.x - x, el.y - y) < deleteDotR;
         } else if (el.type === 'label') {
-          return Math.hypot(el.x - x, el.y - y) < 32;
+          return Math.hypot(el.x - x, el.y - y) < deleteLabelR;
         } else if (el.type === 'arrow') {
-          return pointToSegmentDist(x, y, el.x1, el.y1, el.x2, el.y2) < 16;
+          return pointToSegmentDist(x, y, el.x1, el.y1, el.x2, el.y2) < deleteArrowDist;
         }
         return false;
       });
       if (idx !== -1) {
         pushHistory();
-        elements.splice(idx, 1);
+        const [removed] = elements.splice(idx, 1);
+        if (removed && removed.type === 'dot') {
+          elements.forEach(el => {
+            if (el.type === 'arrow' && el.attachedPlayerId === removed.playerId) {
+              el.attachedPlayerId = null;
+            }
+          });
+        }
         renderRoster();
         drawCanvas();
         scheduleCloudPush();
@@ -2667,10 +2764,31 @@
       expCtx.fillText(`${p.id}. ${p.name}${roleTag}`, px + 18, py + 10);
     });
 
-    const link = document.createElement('a');
-    link.download = (diagName.replace(/[^a-z0-9-_ ]/gi, '').trim() || 'cricket-field-plan') + '.png';
-    link.href = exportCanvas.toDataURL('image/png');
-    link.click();
+    const filename = (diagName.replace(/[^a-z0-9-_ ]/gi, '').trim() || 'cricket-field-plan') + '.png';
+    const triggerDownload = (href, revokeAfter = false) => {
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = href;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      if (revokeAfter) {
+        setTimeout(() => URL.revokeObjectURL(href), 1500);
+      }
+    };
+
+    if (exportCanvas.toBlob) {
+      exportCanvas.toBlob((blob) => {
+        if (!blob) {
+          triggerDownload(exportCanvas.toDataURL('image/png'));
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        triggerDownload(url, true);
+      }, 'image/png');
+    } else {
+      triggerDownload(exportCanvas.toDataURL('image/png'));
+    }
   }
 
   function copyShareableLink() {
